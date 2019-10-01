@@ -18,7 +18,8 @@
 		dimensions: {
 			width: 0,
 			height: 0
-		}
+		},
+		framecount: 1
 	};
 	let hurtboxSrc = {
 		file: '...',
@@ -30,9 +31,10 @@
 	let char = {
 		ground_friction: 1.00,
 		air_friction: 0.07,
-		gravity_speed: 0.50
+		gravity_speed: 0.50,
+		sprite_offset: [0, 0],
+		position_locked: false
 	}
-	let framecount = 1;
 	let windows = [
 		{
 			meta: {
@@ -172,7 +174,7 @@
 					for (let i = 0; i < duration; i++) {
 						let ref = (i === 0) ? prevData : movementData[i-1];
 						let fric = (ref.ypos === 0) ? HFriction : HFrictionAir;
-						movementData[i].xvel = (ref.xvel + prevData.xvel + fric <= 0) ? 0 : ref.xvel + prevData.xvel + fric;
+						movementData[i].xvel = (ref.xvel + fric <= 0) ? 0 : ref.xvel + fric;
 						if (i === 0) movementData[i].xvel += HSpeed;
 						movementData[i].xpos = ref.xpos + movementData[i].xvel
 					}
@@ -189,7 +191,7 @@
 						let ref = (i === 0) ? prevData : movementData[i-1];
 						let fric = (ref.ypos === 0) ? HFriction : HFrictionAir;
 						movementData[i].xvel = (ref.xvel + fric <= 0) ? 0 : ref.xvel + fric;
-						if (i === 0) movementData[i].xvel += HSpeed;
+						if (i === 0) movementData[i].xvel = HSpeed;
 						movementData[i].xpos = ref.xpos + movementData[i].xvel
 					}
 					break;
@@ -234,9 +236,9 @@
 
 	// calculation of common computations
 	$: {
-		calc.frameWidth = spritesheetSrc.dimensions.width / framecount;
-		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth;
-		calc.sprYPos = anim.ypos;
+		calc.frameWidth = spritesheetSrc.dimensions.width / spritesheetSrc.framecount;
+		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset[0]);
+		calc.sprYPos = anim.ypos + Math.floor(char.sprite_offset[1]);
 		if (rend instanceof HTMLElement) {
 			calc.relMouseX = (calc.mouseX - rend.getBoundingClientRect().left - rend.clientWidth / 2 + anim.cameraX/2)/anim.zoom;
 			calc.relMouseY = (calc.mouseY - rend.getBoundingClientRect().top - rend.clientHeight / 2 + anim.cameraY/2)/anim.zoom;
@@ -249,8 +251,8 @@
 		store({
 			anim,
 			windows,
-			framecount,
-			spritesheetSrc
+			spritesheetSrc,
+			char
 		});
 	}
 	const load = () => {
@@ -258,8 +260,8 @@
 		
 		anim = data.anim;
 		windows = data.windows;
-		framecount = data.framecount;
 		spritesheetSrc = data.spritesheetSrc;
+		char = data.char;
 	}
 
 	const startPlaying = () => {
@@ -341,7 +343,7 @@
 		display: grid;
 
 		grid-template-columns: 300px auto 300px;
-		grid-template-rows: 100px 30px 100px auto;
+		grid-template-rows: 100px 30px 100px 30px auto;
 	}
 
 	#file,
@@ -378,7 +380,7 @@
 	}
 
 	#timeline {
-		background-color: #D0D0FF;
+		background-color: #FFF;
 		grid-row: 3 / 4;
 		grid-column: 2 / 3;
 		border-top: 1px solid black;
@@ -387,29 +389,44 @@
 		flex-direction: row;
 	}
 
+	#window-metadata {
+		background-color: #555;
+		border-top: 1px solid #333;
+		grid-row: 4 / 5;
+		grid-column: 2 / 3;
+		position: relative;
+		padding: 3px;
+		display: grid;
+		color: white;
+	}
+
 	#file {
-		background-color: #f004;
-		grid-row: 1 / 5;
+		background-color: #555;
+		border: 5px double #222;
+		color: white;
+		grid-row: 1 / 6;
 		grid-column: 1 / 2;
 		border-right: 1px solid #333;
 	}
 
 	#main {
 		background-color: #888;
-		grid-row: 4 / 5;
+		grid-row: 5 / 6;
 		grid-column: 2 / 3;
 		position: relative;
 
 		overflow: scroll;
-		border-top: 1px solid #333;
+		border-top: 1px solid #555;
 
 		display: grid;
 		overflow: hidden;
 	}
 
 	#settings {
-		background-color: #ff04;
-		grid-row: 1 / 5;
+		background-color: #555;
+		border: 5px double #222;
+		color: white;
+		grid-row: 1 / 6;
 		grid-column: 3 / 4;
 		border-left: 1px solid #333;
 	}
@@ -434,7 +451,6 @@
 		margin: 0;
 	}
 
-
 	.option-group {
 		position: absolute;
 		top: 2px;
@@ -443,6 +459,15 @@
 		font-size: inherit;
 		line-height: 20px;
 	}
+
+	.option-container { 
+		position: absolute; 
+		padding: 10px; 
+		background-color: #FFF8;
+		border-bottom-right-radius: 2px;
+		user-select: none;
+	}
+	.option-param, .stats { pointer-events: auto; width: auto;}
 
 	button[disabled] {
 		background-color: transparent;
@@ -462,6 +487,47 @@
 		float: right;
 		vertical-align: middle;
 	}
+
+	input[type="checkbox"] {
+		width: 0;
+		height: 0;
+		opacity: 0;
+		position: absolute;
+	}
+	input[type="checkbox"] ~ .checkmark {
+		display: inline-block;
+		margin-bottom: -5px;
+		width: 20px;
+		height: 20px;
+		border: 2px solid var(--accent);
+		border-radius: 2px;
+	}
+
+	input[type="checkbox"]:checked ~ .checkmark {
+		display: inline-block;
+		margin-bottom: -5px;
+		width: 20px;
+		height: 20px;
+		border: 2px solid var(--accent);
+		background-color: var(--accent);
+		border-radius: 2px;
+	}
+
+	input[type="checkbox"] ~ .checkmark::after {
+		display: block;
+		opacity: 0;
+		margin-left: 4px;
+		width: 5px;
+		height: 10px;
+		border-bottom: 3px solid white;
+		border-right: 3px solid white;
+		border-radius: 2px;
+		transform: rotate(45deg);
+		content: "";
+	}
+	input[type="checkbox"]:checked ~ .checkmark::after {
+		opacity: 1;
+	}
 	
 </style>
 
@@ -474,7 +540,7 @@
 		</div>
 		<div class="inputGroup">
 			<label for="framecount">number of frames in spritesheet:</label>
-			<input id="framecount" type="number" min="1" max="99" bind:value={framecount}>
+			<input id="framecount" type="number" min="1" max="99" bind:value={spritesheetSrc.framecount}>
 		</div> 
 		<div class="inputGroup">
 			<button on:click={save}><i class="material-icons">save_alt</i><span>save to browser</span></button>
@@ -489,7 +555,7 @@
 				height: 100%;
 				background-color: black;
 			">
-			{#each new Array(framecount).fill(0) as _, i}
+			{#each new Array(spritesheetSrc.framecount).fill(0) as _, i}
 				<div class="frame"
 					style="
 						height: {spritesheetSrc.dimensions.height}px;
@@ -497,7 +563,7 @@
 						background-color: white;
 						background-image: url('{spritesheetSrc.dataUrl}');
 						background-position: -{(calc.frameWidth) * i}px 0;
-						box-shadow: {(anim.spriteFrame % framecount == i) ? 'inset 0 0 5px black' : 'none'};
+						box-shadow: {(anim.spriteFrame % spritesheetSrc.framecount == i) ? 'inset 0 0 5px black' : 'none'};
 						border-right: 2px solid black;
 						display: inline-block;
 					"
@@ -556,7 +622,7 @@
 				style="
 					height: 100%;
 					flex-grow: {win.data.AG_WINDOW_LENGTH.value};
-					background-color: transparent;
+					background-color: {win.meta.color};
 					border-right: {(i !== windows.length - 1) ? '1px solid black' : 'none'};
 					display: grid;
 					position: relative;
@@ -570,16 +636,28 @@
 			style="
 				height: 100%;
 				width: 2px;
-				background-color: #f008;
+				background-color: #8888;
+				box-shadow: 0 0 0 1px #000;
 				position: absolute;
 				margin-left: {(anim.duration != 0) ? anim.animFrame * 100 / anim.duration : 0}%;
 			"
 		/>
 	</div>
+	<div id="window-metadata">
+		<div class="option-group">
+			<label style="display: inline-block">
+				name:
+				<input type="text" bind:value={windows[anim.windowIndex].meta.name}>
+			</label>
+			<label style="display: inline-block">
+				color:
+				<input type="text" bind:value={windows[anim.windowIndex].meta.color}>
+			</label>
+		</div>
+	</div>
 	<div id="main" 
 		bind:this={renderer} 
 		on:mousemove={(evt) => {
-			console.log(rend.clientWidth, rend.clientHeight)
 			if (renderer.dragging && toolSelected === "pan") {
 				anim.cameraX -= evt.movementX;
 				anim.cameraY -= evt.movementY;
@@ -590,8 +668,8 @@
 		on:mousedown={(evt) => {renderer.dragging = true}}
 		on:mouseup={(evt) => {renderer.dragging = false}}
 	>
-		<div class="option-container" style="z-index: 500">
-			<div class="option-group" style="justify-self: right;">
+		<div class="option-container" style="z-index: 500; width: auto; height: auto; pointer-events: none;">
+			<div class="option-param" style="justify-self: right; display: block;">
 				zoom:
 				<select bind:value={anim.zoom}>
 					<option value="0.25">1/4x</option>
@@ -601,9 +679,25 @@
 					<option value="4" >4x</option>
 					<option value="8" >8x</option>
 				</select>
-
+			</div>
+			<div class="option-param" style="justify-self: right; display: block;">
 				grid-x: <input type="number" bind:value={anim.zoomGrids[anim.zoom][0]} min="1" max="100"/>
+			</div>
+			<div class="option-param" style="justify-self: right; display: block;">
 				grid-y: <input type="number" bind:value={anim.zoomGrids[anim.zoom][1]} min="1" max="100"/>
+			</div>
+			<div class="option-param" style="justify-self: right; display: block;">
+				<label>
+					lock offset: 
+					<input type="checkbox" bind:checked={char.position_locked} />
+					<span class="checkmark"></span>
+				</label>
+			</div>
+			<div class="stats">
+				xvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xvel}<br/>
+				yvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].yvel}<br/>
+				xpos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xpos}<br/>
+				ypos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].ypos}<br/>
 			</div>
 		</div>
 		<div class="grid" style="width: 100%; height: 100%; position: absolute; top:0; left: 0; display: grid; image-rendering: pixelated;">
@@ -615,13 +709,13 @@
 					{(anim.cameraY - rend.clientHeight) / 2 / anim.zoom} 
 					{rend.clientWidth / anim.zoom} 
 					{rend.clientHeight / anim.zoom}"
-			>				
+			>
 				<defs>
 					<filter id="blur" x="0" y="0">
 						<feGaussianBlur in="SourceGraphic" stdDeviation="5" />
 					</filter>
 					<clipPath id="spriteClip" clipPathUnits="objectBoundingBox">
-						<rect x="{anim.spriteFrame / framecount}" y="0" width="{1 / framecount}" height="1" />
+						<rect x="{anim.spriteFrame / spritesheetSrc.framecount}" y="0" width="{1 / spritesheetSrc.framecount}" height="1" />
 					</clipPath>
 					<mask id="mouseMask">
 						<circle cx="{calc.relMouseX}" cy="{calc.relMouseY}" r="{anim.gridViewerRadius / anim.zoom}" fill="white" filter="url(#blur)"/>
@@ -649,16 +743,8 @@
 					shape-rendering="crispEdges"
 					mask="url(#mouseMask)"
 				/>
-				<image 
-					x="{calc.sprXPos}"
-					y="{calc.sprYPos}"
-					width="{spritesheetSrc.dimensions.width}"
-					height="{spritesheetSrc.dimensions.height}"
-					xlink:href="{spritesheetSrc.dataUrl}"
-					clip-path="url(#spriteClip)"
-				/>
 				<rect 
-					x="{calc.sprXPos + calc.frameWidth * anim.spriteFrame}"
+					x="{calc.sprXPos + calc.frameWidth * (anim.spriteFrame)}"
 					y="{calc.sprYPos}"
 					width="{calc.frameWidth}"
 					height="{spritesheetSrc.dimensions.height}"
@@ -666,26 +752,37 @@
 					stroke-width="2"
 					fill="none"
 				/>
+				{#if char.position_locked}
+					<image 
+						x="{calc.sprXPos}"
+						y="{calc.sprYPos}"
+						width="{spritesheetSrc.dimensions.width}"
+						height="{spritesheetSrc.dimensions.height}"
+						xlink:href="{spritesheetSrc.dataUrl}"
+						clip-path="url(#spriteClip)"
+					/>
+				{:else}
+					<image 
+						on:mousedown|stopPropagation={(evt) => evt.target.dragging = true}
+						on:mouseout|stopPropagation={(evt) => evt.target.dragging = false}
+						on:mouseup|stopPropagation={(evt) => evt.target.dragging = false}
+						on:mousemove|stopPropagation={(evt) => {
+							if (evt.target.dragging && !char.position_locked) {
+								char.sprite_offset[0] += evt.movementX / anim.zoom;
+								char.sprite_offset[1] += evt.movementY / anim.zoom;
+							}
+						}}
+						x="{calc.sprXPos}"
+						y="{calc.sprYPos}"
+						width="{spritesheetSrc.dimensions.width}"
+						height="{spritesheetSrc.dimensions.height}"
+						xlink:href="{spritesheetSrc.dataUrl}"
+						clip-path="url(#spriteClip)"
+					/>
+				{/if}
+				
 			</svg>
 		</div>
-		<!-- <div class="display"
-			style ="
-				height: {spritesheetSrc.dimensions.height}px;
-				width: {calc.frameWidth}px;
-				transform: scaleX({anim.zoom}) scaleY({anim.zoom}) translateX(-0.5px) translateY(-0.5px);
-				transform-origin: 0 0;
-				border: 2px solid #F008;
-				background-color: transparent;
-				background-image: url('{spritesheetSrc.dataUrl}');
-				background-position: -{(calc.frameWidth) * anim.spriteFrame}px 0;
-				position: absolute;
-				margin-left: {(-anim.cameraX + anim.xpos) * anim.zoom * 2 + rend.clientWidth / 2}px;
-				margin-top: {(-anim.cameraY + anim.ypos) * anim.zoom * 2 + rend.clientHeight / 2}px;
-				image-rendering: pixelated;
-				pointer-events: none;
-			"
-		>
-		</div> -->
 	</div>
 	<div id="settings">
 		{#if editingMode === 'window'}

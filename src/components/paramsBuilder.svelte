@@ -8,6 +8,10 @@
         position: relative;
     }
 
+    input {
+        padding-left: 3px;
+    }
+
     *[data-tooltip]::after {
         background-color: black;
         border-radius: 2px;
@@ -26,6 +30,8 @@
         pointer-events: none;
         transition: opacity .2s ease-out;
 
+        border: 1px solid #444;
+
     }
 
     *[data-tooltip]:hover::after {
@@ -33,8 +39,8 @@
         transition: opacity .2s ease-out;
     }
 
-    *.tooltip-left::after {right: 100%; top: 0;}
-    *.tooltip-up-left::after {right: 100%; bottom: 0;}
+    *.tooltip-left::after {right: calc(100% + 5px); top: 0;}
+    *.tooltip-up-left::after {right: calc(100% + 5px); bottom: 0;}
 
     .input-title {
         font-size: 12px;

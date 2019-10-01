@@ -1,3 +1,10 @@
+:root {
+	--primary: #1FA4C1;
+	--primary-light: #06C5CA;
+	--primary-dark: #0A6573;
+	--accent: rgb(167, 28, 28);  
+}
+
 html, body {
 	position: relative;
 	width: 100%;
@@ -42,6 +49,11 @@ input, button, select, textarea {
 	border: 1px solid #ccc;
 	border-radius: 2px;
 	height: 25px;
+	outline: none;
+}
+input:focus, input:active {
+	outline: none;
+	box-shadow: 0 0 0px 1px var(--accent);
 }
 
 input:disabled {
