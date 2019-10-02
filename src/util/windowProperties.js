@@ -12,7 +12,7 @@ export default {
         type: [0, 7, 8, 9]
     },
     AG_WINDOW_LENGTH: {
-        value: 1,
+        value: 5,
         description: 'The duration of the window, in frames',
         type: 'number'
     },

@@ -45,7 +45,14 @@
 	];
 
 	let editingMode = 'window';
-	let toolSelected = "pan";
+	let mainViewInfo = true;
+	let tools = [
+		["pan_tool", "pan"], 
+		["add_box", "rectangle"], 
+		["rounded_corner", "round"], 
+		["add_circle", "circle"]
+	];
+	tools.selected = "pan";
 
 	let currentFrameLabel;
 	let isCurrentFrameFocused = false;
@@ -223,7 +230,7 @@
 			}
 		}
 		let win = windows[anim.windowIndex].data;
-		anim.spriteFrame = win.AG_WINDOW_ANIM_FRAME_START.value + Math.floor((anim.windowFrame / win.AG_WINDOW_LENGTH.value) * win.AG_WINDOW_ANIM_FRAMES.value);
+		anim.spriteFrame = (win.AG_WINDOW_ANIM_FRAME_START.value + Math.floor((anim.windowFrame / win.AG_WINDOW_LENGTH.value) * win.AG_WINDOW_ANIM_FRAMES.value)) % spritesheetSrc.framecount;
 
 		if (anim.movement) {
 			anim.xpos = Math.floor(anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xpos);
@@ -237,13 +244,15 @@
 	// calculation of common computations
 	$: {
 		calc.frameWidth = spritesheetSrc.dimensions.width / spritesheetSrc.framecount;
-		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset[0]);
+		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset[0]) - calc.frameWidth / 2;
 		calc.sprYPos = anim.ypos + Math.floor(char.sprite_offset[1]);
+		if (!anim.movement) {
+			calc.sprXPos += anim.xpos;
+			calc.sprYPos -= anim.ypos;
+		}
 		if (rend instanceof HTMLElement) {
 			calc.relMouseX = (calc.mouseX - rend.getBoundingClientRect().left - rend.clientWidth / 2 + anim.cameraX/2)/anim.zoom;
 			calc.relMouseY = (calc.mouseY - rend.getBoundingClientRect().top - rend.clientHeight / 2 + anim.cameraY/2)/anim.zoom;
-
-			calc.aspectRatio = rend.clientWidth / rend.clientHeight;
 		}
 	}
 
@@ -462,12 +471,40 @@
 
 	.option-container { 
 		position: absolute; 
-		padding: 10px; 
 		background-color: #FFF8;
 		border-bottom-right-radius: 2px;
 		user-select: none;
+		display: grid;
+		grid-template-rows: 25px auto;
+		grid-template-columns: auto auto;
+		width: 150px;
 	}
+	.tab { pointer-events: auto; border: none; border-radius: 0; }
+	.tab[active="true"] { background-color: transparent; }
+	.tab[active="false"] { background-color: #0004; }
+	.tool-container {grid-column: 1 / 3; padding: 10px;}
 	.option-param, .stats { pointer-events: auto; width: auto;}
+
+	button.tool {
+		height: 30px;
+		width: 100%;
+		pointer-events: auto;
+	}
+	button.tool[active="true"] {
+		background-color: transparent;
+		border: none;
+	}
+	button.tool span {
+		float: left;
+		padding-left: 10px;
+		vertical-align: middle;
+		text-align: center;
+	}
+	button.tool i {
+		font-size: 20px;
+		float: left;
+		vertical-align: middle;
+	}
 
 	button[disabled] {
 		background-color: transparent;
@@ -595,7 +632,6 @@
 			
 			<div style="width: 400px; margin: 0; display: inline-block">
 				window: {anim.windowIndex + 1} / {windows.length}
-				<p style="margin: 0; widht: 200px; display: inline-block">({windows[anim.windowIndex].meta.name})</p> 
 				<button on:click={handleWindowAddition}><i class="material-icons">add</i></button>
 				<button on:click={handleWindowDeletion} disabled="{windows.length <= 1}"><i class="material-icons">delete</i></button>
 			</div>
@@ -658,9 +694,15 @@
 	<div id="main" 
 		bind:this={renderer} 
 		on:mousemove={(evt) => {
-			if (renderer.dragging && toolSelected === "pan") {
-				anim.cameraX -= evt.movementX;
-				anim.cameraY -= evt.movementY;
+			if (renderer.dragging) {
+				switch(tools.selected) {
+					case "pan": 
+						anim.cameraX -= evt.movementX;
+						anim.cameraY -= evt.movementY;
+						break;
+					default:
+						console.log("this shouldn't happen");
+				}	
 			} else {
 				calc.mouseX = evt.clientX; calc.mouseY = evt.clientY
 			}
@@ -668,37 +710,59 @@
 		on:mousedown={(evt) => {renderer.dragging = true}}
 		on:mouseup={(evt) => {renderer.dragging = false}}
 	>
-		<div class="option-container" style="z-index: 500; width: auto; height: auto; pointer-events: none;">
-			<div class="option-param" style="justify-self: right; display: block;">
-				zoom:
-				<select bind:value={anim.zoom}>
-					<option value="0.25">1/4x</option>
-					<option value="0.5">1/2x</option>
-					<option value="1" selected>1x</option>
-					<option value="2" >2x</option>
-					<option value="4" >4x</option>
-					<option value="8" >8x</option>
-				</select>
+		<div class="option-container" style="z-index: 500; height: auto; pointer-events: none;">
+			<button class="tab" on:click={() => mainViewInfo = true} active={mainViewInfo}>info</button>
+			<button class="tab" on:click={() => mainViewInfo = false} active={!mainViewInfo}>tools</button>
+			<div class="tool-container">
+				{#if mainViewInfo}
+					<div class="option-param" style="justify-self: right; display: block;">
+						zoom:
+						<select bind:value={anim.zoom}>
+							<option value="0.25">1/4x</option>
+							<option value="0.5">1/2x</option>
+							<option value="1" selected>1x</option>
+							<option value="2" >2x</option>
+							<option value="4" >4x</option>
+							<option value="8" >8x</option>
+						</select>
+					</div>
+					<div class="option-param" style="justify-self: right; display: block;">
+						grid-x: <input type="number" bind:value={anim.zoomGrids[anim.zoom][0]} min="1" max="100"/>
+					</div>
+					<div class="option-param" style="justify-self: right; display: block;">
+						grid-y: <input type="number" bind:value={anim.zoomGrids[anim.zoom][1]} min="1" max="100"/>
+					</div>
+					<div class="option-param" style="justify-self: right; display: block;">
+						<label>
+							lock offset: 
+							<input type="checkbox" bind:checked={char.position_locked} />
+							<span class="checkmark"></span>
+						</label>
+						<label>
+							show motion: 
+							<input type="checkbox" bind:checked={anim.movement} />
+							<span class="checkmark"></span>
+						</label>
+					</div>
+					<div class="stats">
+						xvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xvel}<br/>
+						yvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].yvel}<br/>
+						xpos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xpos}<br/>
+						ypos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].ypos}<br/>
+					</div>
+				{:else}
+					{#each tools as tool}
+						<button 
+							class="tool" 
+							on:click={() => tools.selected = tool[1]} 
+							active={tools.selected === tool[1]}>
+							<i class="material-icons">{tool[0]}</i><span>{tool[1]}</span>
+						</button>
+
+					{/each}
+				{/if}
 			</div>
-			<div class="option-param" style="justify-self: right; display: block;">
-				grid-x: <input type="number" bind:value={anim.zoomGrids[anim.zoom][0]} min="1" max="100"/>
-			</div>
-			<div class="option-param" style="justify-self: right; display: block;">
-				grid-y: <input type="number" bind:value={anim.zoomGrids[anim.zoom][1]} min="1" max="100"/>
-			</div>
-			<div class="option-param" style="justify-self: right; display: block;">
-				<label>
-					lock offset: 
-					<input type="checkbox" bind:checked={char.position_locked} />
-					<span class="checkmark"></span>
-				</label>
-			</div>
-			<div class="stats">
-				xvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xvel}<br/>
-				yvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].yvel}<br/>
-				xpos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xpos}<br/>
-				ypos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].ypos}<br/>
-			</div>
+			
 		</div>
 		<div class="grid" style="width: 100%; height: 100%; position: absolute; top:0; left: 0; display: grid; image-rendering: pixelated;">
 			<svg 
@@ -715,7 +779,7 @@
 						<feGaussianBlur in="SourceGraphic" stdDeviation="5" />
 					</filter>
 					<clipPath id="spriteClip" clipPathUnits="objectBoundingBox">
-						<rect x="{anim.spriteFrame / spritesheetSrc.framecount}" y="0" width="{1 / spritesheetSrc.framecount}" height="1" />
+						<rect x="{(anim.spriteFrame % spritesheetSrc.framecount) / spritesheetSrc.framecount}" y="0" width="{1 / spritesheetSrc.framecount}" height="1" />
 					</clipPath>
 					<mask id="mouseMask">
 						<circle cx="{calc.relMouseX}" cy="{calc.relMouseY}" r="{anim.gridViewerRadius / anim.zoom}" fill="white" filter="url(#blur)"/>
@@ -767,7 +831,7 @@
 						on:mouseout|stopPropagation={(evt) => evt.target.dragging = false}
 						on:mouseup|stopPropagation={(evt) => evt.target.dragging = false}
 						on:mousemove|stopPropagation={(evt) => {
-							if (evt.target.dragging && !char.position_locked) {
+							if (evt.target.dragging && !char.position_locked && tools.selected === "pan") {
 								char.sprite_offset[0] += evt.movementX / anim.zoom;
 								char.sprite_offset[1] += evt.movementY / anim.zoom;
 							}
