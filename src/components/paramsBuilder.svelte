@@ -1,11 +1,14 @@
 <script>
-    export let winProps = {};
+    export let props = {};
     export let isDisabled = false;
+    let items = [];
 </script>
 
 <style>
-    * {
-        position: relative;
+    *[data-tooltip] {
+        --position-right: 0px;
+        --position-top: 0px;
+        
     }
 
     input {
@@ -19,10 +22,10 @@
         font-size: 15px;
         color: white;
         min-width: 200px;
+        max-width: 200px;
         content: attr(data-tooltip);
         white-space: pre-wrap;
-
-        position: absolute;
+        position: fixed;
         display: block;
         z-index: 1000;
 
@@ -39,8 +42,8 @@
         transition: opacity .2s ease-out;
     }
 
-    *.tooltip-left::after {right: calc(100% + 5px); top: 0;}
-    *.tooltip-up-left::after {right: calc(100% + 5px); bottom: 0;}
+    *.tooltip-left::after {right: calc(100% - var(--position-right)); top: var(--position-top);}
+    *.tooltip-up-left::after {right: calc(100% - var(--position-right)); top: var(--position-top);}
 
     .input-title {
         font-size: 12px;
@@ -48,18 +51,28 @@
     }
 </style>
 
-{#each Object.entries(winProps) as [key, val], index}
-    {#if (!isDisabled(key, winProps))}
+{#each Object.entries(props) as [key, val], index}
+    {#if (!isDisabled(key, props))}
         <div class="input-title">{key}</div>
-        <div class="{(index !== Object.keys(winProps).length - 1) ? 'tooltip-left' : 'tooltip-up-left'}" data-tooltip="{val.description}">
+        <div 
+            class="{(index !== Object.keys(props).length - 1) ? 'tooltip-left' : 'tooltip-up-left'}" 
+            data-tooltip="{val.description}"
+            bind:this={items[index]}
+            on:mouseover={(evt) => {
+                let self = items[index];
+                let bounds = self.getBoundingClientRect();
+                self.style.setProperty('--position-right', `${bounds.left - 5}px`);
+                self.style.setProperty('--position-top', `${bounds.top}px`);
+            }}
+        >
         {#if Array.isArray(val.type)}
-            <select bind:value={winProps[key].value}>
+            <select bind:value={props[key].value}>
                 {#each val.type as choice}
                     <option value="{choice}" selected="{choice === val.value}">{choice}</option>
                 {/each}
             </select>
         {:else if val.type === 'number'}
-            <input type="number" bind:value={winProps[key].value} /> 
+            <input type="number" bind:value={props[key].value} /> 
         {/if}
         </div>
     {/if}

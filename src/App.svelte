@@ -1,4 +1,5 @@
 <script>
+	// I hope y'all like spaghetti
 	import store from 'store2';
 	import {stripIndent} from 'common-tags';
 	
@@ -9,6 +10,7 @@
 		default as winProps, 
 		isDisabled
 	} from './util/windowProperties.js';
+	import hitboxProps from './util/hitboxProperties.js';
 	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js'
 
 
@@ -43,14 +45,26 @@
 			data: JSON.parse(JSON.stringify({...winProps}))
 		},
 	];
+	let hitboxes = [
+		// {
+		// 	meta: {
+		// 		color: ...
+		// 		name: ...
+		//		etc: ...
+		// 	}
+		// }
+	]
 
 	let editingMode = 'window';
 	let mainViewInfo = true;
+	let activeEl;
 	let tools = [
-		["pan_tool", "pan"], 
-		["add_box", "rectangle"], 
-		["rounded_corner", "round"], 
-		["add_circle", "circle"]
+		["pan_tool", "pan", "v"], 
+		["add_box", "rectangle", "r"], 
+		["rounded_corner", "round", "r"], 
+		["add_circle", "circle", "o"],
+		["clear", "eraser", "Backspace"]
+
 	];
 	tools.selected = "pan";
 
@@ -271,6 +285,8 @@
 		windows = data.windows;
 		spritesheetSrc = data.spritesheetSrc;
 		char = data.char;
+
+		window["char"] = char
 	}
 
 	const startPlaying = () => {
@@ -341,8 +357,6 @@
 		}
 		return out;
 	}
-
-	window['anim'] = anim;
 </script>
 
 <style>
@@ -423,8 +437,6 @@
 		grid-row: 5 / 6;
 		grid-column: 2 / 3;
 		position: relative;
-
-		overflow: scroll;
 		border-top: 1px solid #555;
 
 		display: grid;
@@ -438,6 +450,8 @@
 		grid-row: 1 / 6;
 		grid-column: 3 / 4;
 		border-left: 1px solid #333;
+		overflow-y: scroll;
+		user-select: none;
 	}
 
 	.inputGroup { 
@@ -654,7 +668,7 @@
 	<div id="timeline">
 		{#each windows as win, i}
 			<div class="window"
-				on:click={() => {anim.animFrame = anim.windowPositions[i]}}
+				on:click={() => {anim.animFrame = anim.windowPositions[i]; editingMode = "window"}}
 				style="
 					height: 100%;
 					flex-grow: {win.data.AG_WINDOW_LENGTH.value};
@@ -683,32 +697,143 @@
 		<div class="option-group">
 			<label style="display: inline-block">
 				name:
-				<input type="text" bind:value={windows[anim.windowIndex].meta.name}>
+				{#if editingMode === 'window'} 
+					<input type="text" bind:value={windows[anim.windowIndex].meta.name}>
+				{:else}
+					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.name}>
+				{/if}
 			</label>
 			<label style="display: inline-block">
 				color:
-				<input type="text" bind:value={windows[anim.windowIndex].meta.color}>
+				{#if editingMode === 'window'} 
+					<input type="text" bind:value={windows[anim.windowIndex].meta.color}>
+				{:else}
+					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.color}>
+				{/if}			
 			</label>
 		</div>
 	</div>
 	<div id="main" 
-		bind:this={renderer} 
+		bind:this={renderer}
+		tabindex="0"
+		
+		on:keydown={(evt) => {
+			for (const t of tools) {
+				if (t[1] === tools.selected) continue;
+				else if (t[2] === evt.key) {
+					tools.selected = t[1];
+					break;
+				}
+			}
+		}}
 		on:mousemove={(evt) => {
 			if (renderer.dragging) {
 				switch(tools.selected) {
 					case "pan": 
-						anim.cameraX -= evt.movementX;
-						anim.cameraY -= evt.movementY;
+						switch(renderer.target) {
+							case 'hitbox':
+								hitboxes[hitboxes.selected].data.HG_HITBOX_X.value += evt.movementX/anim.zoom;
+								hitboxes[hitboxes.selected].data.HG_HITBOX_Y.value += evt.movementY/anim.zoom;
+								break;
+							case 'angle-indicator':
+								hitboxes[hitboxes.selected].data.HG_ANGLE.value = 180 - Math.atan2(renderer.mouseOrigin[1] - evt.pageY, renderer.mouseOrigin[0] - evt.pageX) * 180/Math.PI;
+								break;
+							case 'resizer':
+								hitboxes[hitboxes.selected].data.HG_WIDTH.value = Math.ceil(Math.abs((renderer.mouseOrigin[0] - evt.pageX)/anim.zoom));
+								hitboxes[hitboxes.selected].data.HG_HEIGHT.value = Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom));
+								break;
+							default:
+								anim.cameraX -= evt.movementX;
+								anim.cameraY -= evt.movementY;
+						}
 						break;
-					default:
-						console.log("this shouldn't happen");
+					case "circle":
+						activeEl.setAttributeNS(null, 'rx', Math.ceil(Math.abs((renderer.mouseOrigin[0] - evt.pageX)/anim.zoom)));
+						activeEl.setAttributeNS(null, 'ry', Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom)));
+						break;
+					case "rectangle":
+					case "round":
+						activeEl.setAttributeNS(null, 'x', renderer.svgPosition[0] - Math.ceil(Math.abs((renderer.mouseOrigin[0] - evt.pageX)/anim.zoom)) );
+						activeEl.setAttributeNS(null, 'y', renderer.svgPosition[1] - Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom)) );
+						activeEl.setAttributeNS(null, 'width', Math.ceil(Math.abs((renderer.mouseOrigin[0] - evt.pageX)/anim.zoom))*2);
+						activeEl.setAttributeNS(null, 'height', Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom))*2);
+						if (tools.selected === "round") {
+							activeEl.setAttributeNS(null, 'rx', parseInt(activeEl.getAttribute('width')) * 0.25);
+							activeEl.setAttributeNS(null, 'ry', parseInt(activeEl.getAttribute('height')) * 0.25);
+							
+						}
+						break;
 				}	
 			} else {
 				calc.mouseX = evt.clientX; calc.mouseY = evt.clientY
 			}
 		}}
-		on:mousedown={(evt) => {renderer.dragging = true}}
-		on:mouseup={(evt) => {renderer.dragging = false}}
+		on:mousedown={(evt) => {
+			tools.active = true;
+			renderer.dragging = true;
+			renderer.target = evt.target.getAttributeNS(null, 'class');
+			if (renderer.target === 'hitbox' || renderer.target === 'angle-indicator') {
+				if (tools.selected === 'eraser') {
+					editingMode = 'window';
+					hitboxes.splice(evt.target.getAttributeNS(null, 'data-index'), 1);
+					hitboxes.forceUpdate = true;
+				} else {
+					editingMode = 'hitbox';
+					hitboxes.selected = parseInt(evt.target.getAttributeNS(null, 'data-index'));
+					const hb = hitboxes[hitboxes.selected];
+					const br = hb.meta.el.getBoundingClientRect();
+					renderer.mouseOrigin = [br.left + (br.right - br.left)/2, br.top + (br.bottom - br.top)/2];
+				}
+
+			} else {
+				if (renderer.target === "resizer") {
+					hitboxes.selected = parseInt(evt.target.getAttributeNS(null, 'data-index'));
+				}
+				renderer.mouseOrigin = [evt.pageX, evt.pageY];
+			}
+			renderer.svgPosition = [calc.relMouseX, calc.relMouseY];
+		}}
+		on:mouseup={(evt) => {
+			tools.active = false;
+			renderer.dragging = false
+			switch(tools.selected) {
+				case "pan":
+					let hb = hitboxes[hitboxes.selected]
+					switch(renderer.target) {
+						case 'hitbox':
+							hb.data.HG_HITBOX_X.value = Math.round(hb.data.HG_HITBOX_X.value);
+							hb.data.HG_HITBOX_Y.value = Math.round(hb.data.HG_HITBOX_Y.value);
+							break;
+						case 'angle-indicator':
+							hb.data.HG_ANGLE.value = Math.round(hb.data.HG_ANGLE.value);
+							break;
+						case 'resizer':
+							if (hb.data.HG_WIDTH.value === 0 || hb.data.HG_HEIGHT.value === 0) {
+								editingMode = 'window';
+								hitboxes.splice(hitboxes.selected, 1);
+								hitboxes.forceUpdate = true;
+							}
+						default:
+							break;
+					}
+					break;
+				case "circle":
+				case "rectangle":
+				case "round":
+					let attributes = JSON.parse(JSON.stringify(hitboxProps));
+					attributes.HG_WIDTH.value = 2 * Math.ceil(Math.abs((renderer.mouseOrigin[0] - evt.pageX)/anim.zoom));
+					attributes.HG_HEIGHT.value = 2 * Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom));
+					if (attributes.HG_WIDTH.value === 0 || attributes.HG_HEIGHT.value === 0) break;
+
+					attributes.HG_HITBOX_X.value = Math.floor(renderer.svgPosition[0]) - calc.sprXPos - calc.frameWidth * (anim.spriteFrame);
+					attributes.HG_HITBOX_Y.value = Math.floor(renderer.svgPosition[1]) - calc.sprYPos;
+					attributes.HG_SHAPE.value = ["circle", "rectangle", "round"].indexOf(tools.selected)
+					hitboxes.push({meta: {color: '#f008', stroke: '#fFF8', strokeWidth: 0.5, el: null}, data: attributes});
+					hitboxes.selected = hitboxes.length - 1;
+					editingMode = 'hitbox';
+					break;
+			}
+		}}
 	>
 		<div class="option-container" style="z-index: 500; height: auto; pointer-events: none;">
 			<button class="tab" on:click={() => mainViewInfo = true} active={mainViewInfo}>info</button>
@@ -844,13 +969,118 @@
 						clip-path="url(#spriteClip)"
 					/>
 				{/if}
-				
+				{#each hitboxes as hitbox, i}
+					{#if hitbox.data.HG_SHAPE.value === 0}
+						<ellipse 
+							class="hitbox"
+							data-index={i}
+							bind:this={hitbox.meta.el}
+							cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
+							cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+							rx="{hitbox.data.HG_WIDTH.value / 2}"
+							ry="{hitbox.data.HG_HEIGHT.value / 2}"
+							fill="{hitbox.meta.color}"
+							stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
+							stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+						/>
+					{:else if hitbox.data.HG_SHAPE.value === 1}
+						<rect 
+							class="hitbox"
+							data-index={i}
+							bind:this={hitbox.meta.el}
+							x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
+							y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
+							width="{hitbox.data.HG_WIDTH.value}"
+							height="{hitbox.data.HG_HEIGHT.value}"
+							fill="{hitbox.meta.color}"
+							stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
+							stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+						/>
+					{:else}
+						<rect 
+							class="hitbox"
+							data-index={i}
+							bind:this={hitbox.meta.el}
+							x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
+							y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
+							rx="{hitbox.data.HG_WIDTH.value * 0.25}"
+							ry="{hitbox.data.HG_HEIGHT.value * 0.25}"
+							width="{hitbox.data.HG_WIDTH.value}"
+							height="{hitbox.data.HG_HEIGHT.value}"
+							fill="{hitbox.meta.color}"
+							stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
+							stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+						/>
+					{/if}
+					<line 
+						class="angle-indicator"
+						data-index={i}
+						x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
+						x2="{
+							calc.sprXPos 
+							+ hitbox.data.HG_HITBOX_X.value 
+							+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
+							* hitbox.data.HG_WIDTH.value / 2
+							+ calc.frameWidth * (anim.spriteFrame)}"
+						y1="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+						y2="{
+							calc.sprYPos 
+							+ hitbox.data.HG_HITBOX_Y.value 
+							+ Math.sin(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
+							* hitbox.data.HG_HEIGHT.value / 2}"
+						stroke="#0008" stroke-width="{4/anim.zoom}" stroke-dasharray="{(hitbox.data.HG_ANGLE.value === 361) ? 4/anim.zoom : 0}"
+					/>
+					{#if tools.selected === 'pan'}
+						<circle 
+							class="resizer"
+							data-index={i}
+							cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
+							cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+							r="{4/anim.zoom}"
+						/>
+					{/if}
+				{/each}
+				{#if tools.active}
+					{#if tools.selected === 'circle'}
+						<ellipse 
+							cx="{Math.floor(calc.relMouseX)}"
+							cy="{Math.floor(calc.relMouseY)}"
+							bind:this={activeEl}
+							fill="white"
+							stroke="black"
+							stroke-width="{4 / anim.zoom}"
+						/>
+					{:else if tools.selected === 'rectangle' || tools.selected === 'round'}
+						<rect 
+							x="{Math.floor(calc.relMouseX)}" 
+							y="{Math.floor(calc.relMouseY)}"
+							bind:this={activeEl}
+							fill="white"
+							stroke="black"
+							stroke-width="{4 / anim.zoom}"
+						/>
+					{/if}
+				{:else if ['circle', 'rectangle', 'round'].includes(tools.selected)}
+					<ellipse 
+						style="pointer-events: none"
+						cx="{Math.floor(calc.relMouseX)}"
+						cy="{Math.floor(calc.relMouseY)}"
+						rx="1"
+						ry="1"
+						fill="#F008"
+						stroke="black"
+						stroke-width="0"
+					/>
+					
+				{/if}
 			</svg>
 		</div>
 	</div>
 	<div id="settings">
 		{#if editingMode === 'window'}
-			<ParamsBuilder isDisabled={isDisabled} bind:winProps={windows[anim.windowIndex].data} />
+			<ParamsBuilder isDisabled={isDisabled} bind:props={windows[anim.windowIndex].data} />
+		{:else if editingMode === 'hitbox'}
+			<ParamsBuilder isDisabled={isDisabled} bind:props={hitboxes[hitboxes.selected].data} />
 		{/if}
 	</div>
 </div>
