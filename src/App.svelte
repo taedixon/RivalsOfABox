@@ -51,7 +51,8 @@
 		// 		color: ...
 		// 		name: ...
 		//		etc: ...
-		// 	}
+		// 	},
+		//  data: {HG_Attrs...}
 		// }
 	]
 
@@ -102,6 +103,8 @@
 		windowIndex: 0, // also known as "windex" :^)
 		windowFrame: 0,
 		windowPositions: [],
+
+		hitboxFrames: {},
 		
 		xpos: 0,
 		ypos: 0,
@@ -228,6 +231,18 @@
 	}
 
 	$: {
+		anim.hitboxFrames = {};
+		for (const [index, hb] of hitboxes.entries()) {
+			const frame = anim.windowPositions[hb.data.HG_WINDOW.value] + hb.data.HG_WINDOW_CREATION_FRAME.value;
+			const duration = hb.data.HG_LIFETIME.value;
+			for (let i = frame; i < frame + duration; i++) {
+				if (!anim.hitboxFrames[i]) anim.hitboxFrames[i] = [];
+				anim.hitboxFrames[i].push(index);
+			}
+		}
+	}
+
+	$: {
 		if (anim.animFrame >= anim.duration) anim.animFrame = anim.windowPositions[anim.windowIndex];
 		let tracker = anim.animFrame;
 		for (const [i, win] of windows.entries()) {
@@ -274,6 +289,7 @@
 		store({
 			anim,
 			windows,
+			hitboxes,
 			spritesheetSrc,
 			char
 		});
@@ -285,8 +301,7 @@
 		windows = data.windows;
 		spritesheetSrc = data.spritesheetSrc;
 		char = data.char;
-
-		window["char"] = char
+		hitboxes = data.hitboxes;
 	}
 
 	const startPlaying = () => {
@@ -827,7 +842,9 @@
 
 					attributes.HG_HITBOX_X.value = Math.floor(renderer.svgPosition[0]) - calc.sprXPos - calc.frameWidth * (anim.spriteFrame);
 					attributes.HG_HITBOX_Y.value = Math.floor(renderer.svgPosition[1]) - calc.sprYPos;
-					attributes.HG_SHAPE.value = ["circle", "rectangle", "round"].indexOf(tools.selected)
+					attributes.HG_SHAPE.value = ["circle", "rectangle", "round"].indexOf(tools.selected);
+					attributes.HG_WINDOW.value = anim.windowIndex;
+					attributes.HG_WINDOW_CREATION_FRAME.value = anim.windowFrame;
 					hitboxes.push({meta: {color: '#f008', stroke: '#fFF8', strokeWidth: 0.5, el: null}, data: attributes});
 					hitboxes.selected = hitboxes.length - 1;
 					editingMode = 'hitbox';
@@ -970,74 +987,76 @@
 					/>
 				{/if}
 				{#each hitboxes as hitbox, i}
-					{#if hitbox.data.HG_SHAPE.value === 0}
-						<ellipse 
-							class="hitbox"
+					{#if anim.hitboxFrames[anim.animFrame] && anim.hitboxFrames[anim.animFrame].includes(i)}
+						{#if hitbox.data.HG_SHAPE.value === 0}
+							<ellipse 
+								class="hitbox"
+								data-index={i}
+								bind:this={hitbox.meta.el}
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
+								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+								rx="{hitbox.data.HG_WIDTH.value / 2}"
+								ry="{hitbox.data.HG_HEIGHT.value / 2}"
+								fill="{hitbox.meta.color}"
+								stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
+								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+							/>
+						{:else if hitbox.data.HG_SHAPE.value === 1}
+							<rect 
+								class="hitbox"
+								data-index={i}
+								bind:this={hitbox.meta.el}
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
+								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
+								width="{hitbox.data.HG_WIDTH.value}"
+								height="{hitbox.data.HG_HEIGHT.value}"
+								fill="{hitbox.meta.color}"
+								stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
+								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+							/>
+						{:else}
+							<rect 
+								class="hitbox"
+								data-index={i}
+								bind:this={hitbox.meta.el}
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
+								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
+								rx="{hitbox.data.HG_WIDTH.value * 0.25}"
+								ry="{hitbox.data.HG_HEIGHT.value * 0.25}"
+								width="{hitbox.data.HG_WIDTH.value}"
+								height="{hitbox.data.HG_HEIGHT.value}"
+								fill="{hitbox.meta.color}"
+								stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
+								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+							/>
+						{/if}
+						<line 
+							class="angle-indicator"
 							data-index={i}
-							bind:this={hitbox.meta.el}
-							cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
-							cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
-							rx="{hitbox.data.HG_WIDTH.value / 2}"
-							ry="{hitbox.data.HG_HEIGHT.value / 2}"
-							fill="{hitbox.meta.color}"
-							stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
-							stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
+							x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
+							x2="{
+								calc.sprXPos 
+								+ hitbox.data.HG_HITBOX_X.value 
+								+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
+								* hitbox.data.HG_WIDTH.value / 2
+								+ calc.frameWidth * (anim.spriteFrame)}"
+							y1="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+							y2="{
+								calc.sprYPos 
+								+ hitbox.data.HG_HITBOX_Y.value 
+								+ Math.sin(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
+								* hitbox.data.HG_HEIGHT.value / 2}"
+							stroke="#0008" stroke-width="{4/anim.zoom}" stroke-dasharray="{(hitbox.data.HG_ANGLE.value === 361) ? 4/anim.zoom : 0}"
 						/>
-					{:else if hitbox.data.HG_SHAPE.value === 1}
-						<rect 
-							class="hitbox"
-							data-index={i}
-							bind:this={hitbox.meta.el}
-							x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
-							y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
-							width="{hitbox.data.HG_WIDTH.value}"
-							height="{hitbox.data.HG_HEIGHT.value}"
-							fill="{hitbox.meta.color}"
-							stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
-							stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
-						/>
-					{:else}
-						<rect 
-							class="hitbox"
-							data-index={i}
-							bind:this={hitbox.meta.el}
-							x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
-							y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
-							rx="{hitbox.data.HG_WIDTH.value * 0.25}"
-							ry="{hitbox.data.HG_HEIGHT.value * 0.25}"
-							width="{hitbox.data.HG_WIDTH.value}"
-							height="{hitbox.data.HG_HEIGHT.value}"
-							fill="{hitbox.meta.color}"
-							stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
-							stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
-						/>
-					{/if}
-					<line 
-						class="angle-indicator"
-						data-index={i}
-						x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
-						x2="{
-							calc.sprXPos 
-							+ hitbox.data.HG_HITBOX_X.value 
-							+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
-							* hitbox.data.HG_WIDTH.value / 2
-							+ calc.frameWidth * (anim.spriteFrame)}"
-						y1="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
-						y2="{
-							calc.sprYPos 
-							+ hitbox.data.HG_HITBOX_Y.value 
-							+ Math.sin(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
-							* hitbox.data.HG_HEIGHT.value / 2}"
-						stroke="#0008" stroke-width="{4/anim.zoom}" stroke-dasharray="{(hitbox.data.HG_ANGLE.value === 361) ? 4/anim.zoom : 0}"
-					/>
-					{#if tools.selected === 'pan'}
-						<circle 
-							class="resizer"
-							data-index={i}
-							cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
-							cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
-							r="{4/anim.zoom}"
-						/>
+						{#if tools.selected === 'pan'}
+							<circle 
+								class="resizer"
+								data-index={i}
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
+								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+								r="{4/anim.zoom}"
+							/>
+						{/if}
 					{/if}
 				{/each}
 				{#if tools.active}
