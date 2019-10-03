@@ -74,16 +74,10 @@ export default {
         type: 'number',
         dependencies: ['obj.AG_WINDOW_HAS_CUSTOM_FRICTION.value === 1']
     },
-    AG_WINDOW_HAS_CUSTOM_GRAVITY: {
-        value: 0,
-        description: 'wheather or not the window uses custom gravity',
-        type: [0, 1]
-    },
     AG_WINDOW_CUSTOM_GRAVITY: {
         value: null,
         description: 'The gravitational acceleration to apply every frame of the window. Only applies if AG_USES_CUSTOM_GRAVITY is 1',
-        type: 'number',
-        dependencies: ['obj.AG_WINDOW_HAS_CUSTOM_GRAVITY.value === 1']
+        type: 'number'
     },
     AG_WINDOW_HAS_WHIFFLAG: {
         value: 0,

@@ -11,8 +11,10 @@
 		isDisabled
 	} from './util/windowProperties.js';
 	import hitboxProps from './util/hitboxProperties.js';
-	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js'
-
+	import atkDataProps from './util/atkDataProperties.js';
+	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js';
+	
+	import exporter from './util/exportToGML.js';
 
 	let spritesheetSrc = {
 		file: '...',
@@ -31,11 +33,36 @@
 
 
 	let char = {
-		ground_friction: 1.00,
-		air_friction: 0.07,
-		gravity_speed: 0.50,
-		sprite_offset: [0, 0],
-		position_locked: false
+		ground_friction: {
+			value: 1.00,
+			description: `how fast the character's horizontal speed decreases on the ground`,
+			type: 'number'
+		},
+		air_friction: {
+			value: 0.07,
+			description: `how fast the character's horizontal speed decreases in midair`,
+			type: 'number'
+		},
+		gravity_speed: {
+			value: 0.50,
+			description: 'how fast the character falls naturally',
+			type: 'number'
+		},
+		sprite_offset_x: {
+			value: 0,
+			description: 'sprite offset X location',
+			type: 'number'
+		},
+		sprite_offset_y: {
+			value: 0,
+			description: 'sprite offset Y location',
+			type: 'number'
+		},
+		position_locked: {
+			value: false,
+			description: `whether or not the character's offset will move in the editor`,
+			type: [true, false]
+		}
 	}
 	let windows = [
 		{
@@ -55,13 +82,14 @@
 		//  data: {HG_Attrs...}
 		// }
 	]
+	let atkData = JSON.parse(JSON.stringify(atkDataProps));
 
 	let editingMode = 'window';
 	let mainViewInfo = true;
 	let activeEl;
 	let tools = [
 		["pan_tool", "pan", "v"], 
-		["add_box", "rectangle", "r"], 
+		["add_box", "rectangle", "b"], 
 		["rounded_corner", "round", "r"], 
 		["add_circle", "circle", "o"],
 		["clear", "eraser", "Backspace"]
@@ -139,15 +167,15 @@
 			// gets velocities and positions of the character sprite		
 			let HSpeed = data.AG_WINDOW_HSPEED.value || 0;
 			let HFriction = (data.AG_WINDOW_HAS_CUSTOM_FRICTION.value === 1) ?
-				data.AG_WINDOW_CUSTOM_GROUND_FRICTION.value : char.ground_friction;
+				data.AG_WINDOW_CUSTOM_GROUND_FRICTION.value : char.ground_friction.value;
 			let HFrictionAir = (data.AG_WINDOW_HAS_CUSTOM_FRICTION.value === 1) ?
-				data.AG_WINDOW_CUSTOM_AIR_FRICTION.value : char.air_friction;
+				data.AG_WINDOW_CUSTOM_AIR_FRICTION.value : char.air_friction.value;
 				HFriction *= -1;
 				HFrictionAir *= -1;
 
 			let VSpeed = data.AG_WINDOW_VSPEED.value || 0;
-			let Gravity = (data.AG_WINDOW_HAS_CUSTOM_GRAVITY.value === 1) ?
-				data.AG_WINDOW_CUSTOM_GRAVITY.value : char.gravity_speed;
+			let Gravity = (atkData.AG_USES_CUSTOM_GRAVITY.value === 1 && data.AG_WINDOW_CUSTOM_GRAVITY.value !== 0) ?
+				data.AG_WINDOW_CUSTOM_GRAVITY.value : char.gravity_speed.value;
 
 			let duration = data.AG_WINDOW_LENGTH.value || 1;
 			let movementData = new Array(duration).fill(0).map(() => {return {xvel: 0, yvel: 0, xpos: 0, ypos: 0}});
@@ -273,8 +301,8 @@
 	// calculation of common computations
 	$: {
 		calc.frameWidth = spritesheetSrc.dimensions.width / spritesheetSrc.framecount;
-		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset[0]) - calc.frameWidth / 2;
-		calc.sprYPos = anim.ypos + Math.floor(char.sprite_offset[1]);
+		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset_x.value) - calc.frameWidth / 2;
+		calc.sprYPos = anim.ypos + Math.floor(char.sprite_offset_y.value);
 		if (!anim.movement) {
 			calc.sprXPos += anim.xpos;
 			calc.sprYPos -= anim.ypos;
@@ -291,7 +319,8 @@
 			windows,
 			hitboxes,
 			spritesheetSrc,
-			char
+			char,
+			atkData,
 		});
 	}
 	const load = () => {
@@ -302,7 +331,19 @@
 		spritesheetSrc = data.spritesheetSrc;
 		char = data.char;
 		hitboxes = data.hitboxes;
+		atkData = data.atkData;
 	}
+
+	let initGMLCode = 'nothing exported yet';
+	let loadGMLCode = 'nothing exported yet';
+	let attackGMLCode = 'nothing exported yet';
+	let outputBox = 'stuff will appear here when the above buttons are clicked...';
+	const gmlExport = () => {
+		const strings = exporter(char, atkData, windows, JSON.parse(JSON.stringify(hitboxes)));
+		initGMLCode = strings.out_INIT;
+		loadGMLCode = strings.out_LOAD;
+		attackGMLCode = strings.out_ATK;
+	};
 
 	const startPlaying = () => {
 		anim.playing = !anim.playing;
@@ -607,11 +648,33 @@
 		<div class="inputGroup">
 			<label for="framecount">number of frames in spritesheet:</label>
 			<input id="framecount" type="number" min="1" max="99" bind:value={spritesheetSrc.framecount}>
+		</div>
+		<div class="inputGroup">
+			<button on:click={() => editingMode = 'atkData'}><i class="material-icons">edit</i><span>edit attack data</span></button>
+			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
 		</div> 
 		<div class="inputGroup">
 			<button on:click={save}><i class="material-icons">save_alt</i><span>save to browser</span></button>
 			<button on:click={load}><i class="material-icons">unarchive</i><span>load from browser</span></button>
+			<button on:click={gmlExport}><i class="material-icons">import_export</i><span>export to GML</span></button>
 		</div>
+		<div class="inputGroup">
+			<button on:click={() => outputBox = initGMLCode}><i class="material-icons">attachment</i><span>init.gml</span></button>
+			<button on:click={() => outputBox = loadGMLCode}><i class="material-icons">attachment</i><span>load.gml</span></button>
+			<button on:click={() => outputBox = attackGMLCode}><i class="material-icons">attachment</i><span>[attackname].gml</span></button>
+			<textarea 
+				bind:value={outputBox} 
+				style="
+					height: 300px;
+					width: 100%;
+					color: #DDD;
+					font-size: 10px;
+					font-family: monospace;
+					background-color: black;
+				"
+			></textarea>
+		</div>
+
 		
 	</div>
 	<div id="frames">
@@ -714,7 +777,7 @@
 				name:
 				{#if editingMode === 'window'} 
 					<input type="text" bind:value={windows[anim.windowIndex].meta.name}>
-				{:else}
+				{:else if editingMode === 'hitbox'}
 					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.name}>
 				{/if}
 			</label>
@@ -722,7 +785,7 @@
 				color:
 				{#if editingMode === 'window'} 
 					<input type="text" bind:value={windows[anim.windowIndex].meta.color}>
-				{:else}
+				{:else if editingMode === 'hitbox'}
 					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.color}>
 				{/if}			
 			</label>
@@ -733,13 +796,29 @@
 		tabindex="0"
 		
 		on:keydown={(evt) => {
-			for (const t of tools) {
-				if (t[1] === tools.selected) continue;
-				else if (t[2] === evt.key) {
-					tools.selected = t[1];
+			switch(evt.key) {
+				case '[':
+					skipBack();
 					break;
-				}
+				case ',':
+					if (anim.animFrame > 0) anim.animFrame --;
+					break;
+				case ']':
+					skipAhead();
+					break;
+				case '.':
+					if (anim.animFrame < anim.duration - 1) anim.animFrame ++;
+					break;
+				default: 
+					for (const t of tools) {
+						if (t[1] === tools.selected) continue;
+						else if (t[2] === evt.key) {
+							tools.selected = t[1];
+							break;
+						}
+					}	
 			}
+			
 		}}
 		on:mousemove={(evt) => {
 			if (renderer.dragging) {
@@ -877,7 +956,7 @@
 					<div class="option-param" style="justify-self: right; display: block;">
 						<label>
 							lock offset: 
-							<input type="checkbox" bind:checked={char.position_locked} />
+							<input type="checkbox" bind:checked={char.position_locked.value} />
 							<span class="checkmark"></span>
 						</label>
 						<label>
@@ -958,7 +1037,7 @@
 					stroke-width="2"
 					fill="none"
 				/>
-				{#if char.position_locked}
+				{#if char.position_locked.value}
 					<image 
 						x="{calc.sprXPos}"
 						y="{calc.sprYPos}"
@@ -973,9 +1052,9 @@
 						on:mouseout|stopPropagation={(evt) => evt.target.dragging = false}
 						on:mouseup|stopPropagation={(evt) => evt.target.dragging = false}
 						on:mousemove|stopPropagation={(evt) => {
-							if (evt.target.dragging && !char.position_locked && tools.selected === "pan") {
-								char.sprite_offset[0] += evt.movementX / anim.zoom;
-								char.sprite_offset[1] += evt.movementY / anim.zoom;
+							if (evt.target.dragging && !char.position_locked.value && tools.selected === "pan") {
+								char.sprite_offset_x.value += evt.movementX / anim.zoom;
+								char.sprite_offset_y.value += evt.movementY / anim.zoom;
 							}
 						}}
 						x="{calc.sprXPos}"
@@ -1100,6 +1179,10 @@
 			<ParamsBuilder isDisabled={isDisabled} bind:props={windows[anim.windowIndex].data} />
 		{:else if editingMode === 'hitbox'}
 			<ParamsBuilder isDisabled={isDisabled} bind:props={hitboxes[hitboxes.selected].data} />
+		{:else if editingMode === 'atkData'}
+			<ParamsBuilder isDisabled={isDisabled} bind:props={atkData} />
+		{:else if editingMode === 'chrData'}
+			<ParamsBuilder isDisabled={isDisabled} bind:props={char} />
 		{/if}
 	</div>
 </div>

@@ -2,6 +2,7 @@
     export let props = {};
     export let isDisabled = false;
     let items = [];
+
 </script>
 
 <style>
@@ -61,8 +62,12 @@
             on:mouseover={(evt) => {
                 let self = items[index];
                 let bounds = self.getBoundingClientRect();
+                let styles = window.getComputedStyle(self, ':after');
                 self.style.setProperty('--position-right', `${bounds.left - 5}px`);
-                self.style.setProperty('--position-top', `${bounds.top}px`);
+                self.style.setProperty('--position-top', `${
+                    (bounds.top + parseInt(styles.getPropertyValue('height')) > window.innerHeight) ? 
+                    window.innerHeight - parseInt(styles.getPropertyValue('height')) - 10 : bounds.top 
+                }px`);
             }}
         >
         {#if Array.isArray(val.type)}
@@ -73,6 +78,10 @@
             </select>
         {:else if val.type === 'number'}
             <input type="number" bind:value={props[key].value} /> 
+        {:else if val.type === 'string'}
+            <input type="text" bind:value={props[key].value} /> 
+        {:else if val.type === 'auto'}
+            <input type="text" bind:value={props[key].value} disabled /> 
         {/if}
         </div>
     {/if}
