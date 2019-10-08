@@ -1,4 +1,5 @@
 import { stripIndent } from 'common-tags';
+import sfx from './sfxNames.js';
 
 export default {
     HG_PARENT_HITBOX: {
@@ -178,7 +179,8 @@ export default {
         description: stripIndent`
         The index of the sound effect to play when the attack hits
         `,
-        type: 'number',
+        options: JSON.stringify(sfx),
+        type: `sound {${JSON.stringify(sfx)}}`,
     },
     HG_ANGLE_FLIPPER: {
         value: 0,

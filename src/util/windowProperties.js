@@ -1,4 +1,5 @@
 import { stripIndent } from 'common-tags';
+import sfx from './sfxNames.js';
 
 export default {
     AG_WINDOW_TYPE: {
@@ -128,7 +129,8 @@ export default {
     AG_WINDOW_SFX: {
         value: null,
         description: 'The index of the sound effect. Only applies if AG_WINDOW_HAS_SFX is 1',
-        type: 'number',
+        type: `sound`,
+        options: JSON.stringify(sfx),
         dependencies: ["obj.AG_WINDOW_HAS_SFX.value == 1"]
     },
     AG_WINDOW_SFX_FRAME: {

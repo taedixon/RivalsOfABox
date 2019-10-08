@@ -42,7 +42,7 @@ const ATK_INDEXES = {
     36: "AT_TAUNT_2",
     37: "AT_EXTRA_2",
     38: "AT_EXTRA_3",
-    41: "A,T_NSPECIAL_AIR"
+    41: "AT_NSPECIAL_AIR"
 }
 
 export default (charData, atkData, windows, hitboxes) => {
@@ -51,7 +51,7 @@ export default (charData, atkData, windows, hitboxes) => {
     let out_ATK = "";
 
     let ATK_NAME;
-    if (Object.keys(ATK_INDEXES).includes(parseInt(atkData.ATK_INDEX.value))) ATK_NAME = ATK_INDEXES[parseInt(atkData.ATK_INDEX.value)];
+    if (Object.keys(ATK_INDEXES).includes(atkData.ATK_INDEX.value.toString())) ATK_NAME = ATK_INDEXES[parseInt(atkData.ATK_INDEX.value.toString())];
     else ATK_NAME = atkData.ATK_INDEX.value;
 
     for (const [key, entry] of Object.entries(charData)) {        
@@ -67,11 +67,11 @@ export default (charData, atkData, windows, hitboxes) => {
     }
     out_LOAD += spriteOffsetChangeTemplate
         .replace('__VALUEX__', charData.sprite_offset_x.value)
-        .replace('__VALUEY__', charData.sprite_offset_y.value) 
+        .replace('__VALUEY__', charData.sprite_offset_y.value * -1) 
         + '\n';
 
     for (const [key, entry] of Object.entries(atkData)) {    
-        if (entry.value === 0) continue;    
+        if ([null, undefined, '...', '--REPLACE_ME--', 0].includes(entry.value)) continue;
         switch (key) {
             case 'ATK_INDEX': 
                 continue;
@@ -102,7 +102,7 @@ export default (charData, atkData, windows, hitboxes) => {
                 .replace("__ATKNAME__", ATK_NAME)
                 .replace("__WINDOWNUM__", i + 1)
                 .replace("__AGINDEX__", key)
-                .replace("__VALUE__", entry.value)
+                .replace("__VALUE__", (key === 'AG_WINDOW_SFX') ? `asset_get("${entry.value}")` : entry.value)
                 + '\n';
         }
         out_ATK += '\n';
@@ -123,13 +123,14 @@ export default (charData, atkData, windows, hitboxes) => {
     })
     for (const [i, hb] of hbs.entries()) {
         for (const [key, entry] of Object.entries(hb.data)) {  
-            if ([null, undefined, '...', 0].includes(entry.value) && key !== "HG_WINDOW_CREATION_FRAME") continue;
+            if ([null, undefined, '...', 0].includes(entry.value) && !["HG_WINDOW_CREATION_FRAME", "HG_WINDOW"].includes(key)) continue;
 
             // because I made a few silly miscalculations
             if (key === "HG_HITBOX_X") entry.value -= charData.sprite_offset_x.value; 
             else if (key === "HG_HITBOX_Y") entry.value += charData.sprite_offset_y.value; 
             else if (key === "HG_WINDOW") entry.value ++;
-
+            else if (key === "HG_WINDOW_CREATION_FRAME") entry.value ++;
+            
             out_ATK += setHbValTemplate
                 .replace("__ATKNAME__", ATK_NAME)
                 .replace("__HITBOXNUM__", i + 1)

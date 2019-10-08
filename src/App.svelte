@@ -1,20 +1,29 @@
 <script>
-	// I hope y'all like spaghetti
+	import LZS from 'lz-string';
 	import store from 'store2';
-	import {stripIndent} from 'common-tags';
+	import streamSaver from 'streamsaver';
 	
 	import ParamsBuilder from './components/paramsBuilder.svelte';
+	import Timeline from './components/timeline.svelte';
+	import LocalStorageFS from './components/LocalStorageFS.svelte';
+	import Modal from './atoms/modal.svelte';
 
-	import NDReverse from './util/nonDestructiveReverse.js';
 	import {
 		default as winProps, 
 		isDisabled
 	} from './util/windowProperties.js';
 	import hitboxProps from './util/hitboxProperties.js';
 	import atkDataProps from './util/atkDataProperties.js';
+	import charProps from './util/characterProperties.js';
 	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js';
-	
+	import { strip, populate } from './util/importExportData.js';
 	import exporter from './util/exportToGML.js';
+
+	// makes a confirmation dialog appear before closing the window
+	window.onbeforeunload = (e) => 'derp';
+
+
+	let modalVisible = true;
 
 	let spritesheetSrc = {
 		file: '...',
@@ -25,45 +34,8 @@
 		},
 		framecount: 1
 	};
-	let hurtboxSrc = {
-		file: '...',
-		buffer: null
-	};
-	let codeFile;
 
-
-	let char = {
-		ground_friction: {
-			value: 1.00,
-			description: `how fast the character's horizontal speed decreases on the ground`,
-			type: 'number'
-		},
-		air_friction: {
-			value: 0.07,
-			description: `how fast the character's horizontal speed decreases in midair`,
-			type: 'number'
-		},
-		gravity_speed: {
-			value: 0.50,
-			description: 'how fast the character falls naturally',
-			type: 'number'
-		},
-		sprite_offset_x: {
-			value: 0,
-			description: 'sprite offset X location',
-			type: 'number'
-		},
-		sprite_offset_y: {
-			value: 0,
-			description: 'sprite offset Y location',
-			type: 'number'
-		},
-		position_locked: {
-			value: false,
-			description: `whether or not the character's offset will move in the editor`,
-			type: [true, false]
-		}
-	}
+	let char = charProps;
 	let windows = [
 		{
 			meta: {
@@ -97,8 +69,6 @@
 	];
 	tools.selected = "pan";
 
-	let currentFrameLabel;
-	let isCurrentFrameFocused = false;
 	let renderer;
 	let rend;
 	$: rend = (renderer) ? renderer : {};
@@ -125,6 +95,8 @@
 			8.00: [1, 1],
 		},
 
+		audio: true,
+
 		// calculated
 		duration: 0,
 		spriteFrame: 0,
@@ -136,7 +108,7 @@
 		
 		xpos: 0,
 		ypos: 0,
-		charFramePositionData: []
+		charFramePositionData: [],
 	}
 
 	let calc = {
@@ -150,16 +122,31 @@
 		aspectRatio: 1
 	}
 
-	// calculation of window positions also happens here
-	$: anim.duration = windows.reduce((acc, win, i) => {
-		// gets position of window in frames
-		if (anim.windowPositions.length !== i) anim.windowPositions[i] = acc;
-		else anim.windowPositions.push(acc);
+	let updateStates = {
+		length: true,
+		movement: true,
+		hitboxes: true,
+		frames: true,
+	}
 
-		// actually calculates the duration		
-		return acc + (win.data.AG_WINDOW_LENGTH.value || 1)
-	} , 0);
-	$: if (anim.movement) {
+	// calculation of window positions also happens here
+	$: if (updateStates.length) {
+		updateStates.length = false;
+		let temp = anim.duration;
+		anim.duration = windows.reduce((acc, win, i) => {
+			// gets position of window in frames
+			if (anim.windowPositions.length !== i) anim.windowPositions[i] = acc;
+			else anim.windowPositions.push(acc);
+
+			// actually calculates the duration		
+			return acc + (win.data.AG_WINDOW_LENGTH.value || 1)
+		} , 0);
+		if (temp !== anim.duration) updateStates.movement = true;
+	}
+	
+	// movement calculations
+	$: if (anim.movement && updateStates.movement) {
+		updateStates.movement = false;
 		let prevData = {xvel: 0, yvel: 0, xpos: 0, ypos: 0};
 		for (const [windex, win] of windows.entries()) {
 			let data = win.data;
@@ -258,7 +245,9 @@
 		}
 	}
 
-	$: {
+	// hitbox calculations
+	$: if (updateStates.hitboxes) {
+		updateStates.hitboxes = false;
 		anim.hitboxFrames = {};
 		for (const [index, hb] of hitboxes.entries()) {
 			const frame = anim.windowPositions[hb.data.HG_WINDOW.value] + hb.data.HG_WINDOW_CREATION_FRAME.value;
@@ -270,13 +259,15 @@
 		}
 	}
 
-	$: {
+	// things that do need to be calculated each frame
+	$: if (updateStates.frames) {
+		updateStates.frames = false;
 		if (anim.animFrame >= anim.duration) anim.animFrame = anim.windowPositions[anim.windowIndex];
 		let tracker = anim.animFrame;
 		for (const [i, win] of windows.entries()) {
 			tracker -= win.data.AG_WINDOW_LENGTH.value;
 			if (tracker <= 0) {
-				if (tracker === 0) {
+				if (tracker === 0 && anim.duration !== 1) {
 					anim.windowIndex = i + 1;
 					anim.windowFrame = 0;
 					break;
@@ -296,9 +287,18 @@
 			anim.xpos = 0;
 			anim.ypos = 0;
 		}
+
+		if (anim.audio) {
+			const path = (win.AG_WINDOW_SFX.options.includes(win.AG_WINDOW_SFX.value)) ?
+			`./sounds/${win.AG_WINDOW_SFX.value}` : '';
+			if (path !== '' && win.AG_WINDOW_SFX_FRAME.value === anim.windowFrame) {
+				let thing = new Audio(path);
+				thing.play();
+			}
+		}
 	}
 
-	// calculation of common computations
+	// common computations
 	$: {
 		calc.frameWidth = spritesheetSrc.dimensions.width / spritesheetSrc.framecount;
 		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset_x.value) - calc.frameWidth / 2;
@@ -313,25 +313,60 @@
 		}
 	}
 
+	const fullUpdate = () => {
+		updateStates.hitboxes = true;
+		updateStates.movement = true;
+		updateStates.length = true;
+		updateStates.frames = true;
+	}
+
 	const save = () => {
 		store({
 			anim,
-			windows,
-			hitboxes,
+			windows: strip(windows),
+			hitboxes: strip(hitboxes),
 			spritesheetSrc,
-			char,
+			char: strip(char),
 			atkData,
 		});
 	}
 	const load = () => {
 		let data = store();
-		
 		anim = data.anim;
-		windows = data.windows;
+		windows = populate(data.windows, winProps);
 		spritesheetSrc = data.spritesheetSrc;
-		char = data.char;
-		hitboxes = data.hitboxes;
+		char = populate(data.char, charProps);
+		hitboxes = populate(data.hitboxes, hitboxProps);
 		atkData = data.atkData;
+		fullUpdate();
+	}
+	const exportWIP = () => {
+		const fileStream = streamSaver.createWriteStream('WIP.roab');
+		const data = (LZS.compressToUint8Array(JSON.stringify({
+			anim,
+			windows: strip(windows),
+			hitboxes: strip(hitboxes),
+			spritesheetSrc,
+			char: strip(char),
+			atkData,
+		})))
+
+		new Response(data).body
+			.pipeTo(fileStream)
+	}
+	const loadWIP = async (evt) => {
+		const file = evt.target.files[0];
+		const data = new Uint8Array(await file.arrayBuffer());
+		const d = JSON.parse(LZS.decompressFromUint8Array(data));
+		
+		anim = d.anim;
+		windows = populate(d.windows, winProps);
+		hitboxes = populate(d.hitboxes, hitboxProps);
+		spritesheetSrc = d.spritesheetSrc;
+		char = populate(d.char, charProps);
+		atkData = d.atkData;
+
+		fullUpdate();
 	}
 
 	let initGMLCode = 'nothing exported yet';
@@ -345,22 +380,6 @@
 		attackGMLCode = strings.out_ATK;
 	};
 
-	const startPlaying = () => {
-		anim.playing = !anim.playing;
-		if (anim.playing) play();
-	}
-	const play = () => {
-		if (anim.playing) {
-			setTimeout(() => { 
-				if (anim.animFrame + 1 === anim.duration) { 
-					anim.animFrame = 0;
-					if (!anim.loop) { anim.playing = false; }
-				}
-				else { anim.animFrame += 1 }
-				requestAnimationFrame(play)
-			}, 1000 / 60 * (1 / anim.playSpeed))
-		}
-	} 
 	const skipBack = () => {
 		if (anim.windowIndex !== 0) anim.animFrame = anim.windowPositions[anim.windowIndex - 1];
 		else anim.animFrame = 0;
@@ -368,15 +387,6 @@
 	const skipAhead = () => {
 		if (anim.windowIndex !== windows.length - 1) anim.animFrame = anim.windowPositions[anim.windowIndex + 1];
 		else anim.animFrame = anim.windowPositions[anim.windowIndex] + windows[anim.windowIndex].data.AG_WINDOW_LENGTH.value - 1;
-	}
-
-	const handleWindowAddition = () => {
-		windows.splice(anim.windowIndex, 0, {meta: {}, data: JSON.parse(JSON.stringify({...winProps}))} );
-		anim.animFrame = anim.animFrame;
-	}
-	const handleWindowDeletion = () => {
-		windows.splice(anim.windowIndex, 1);
-		anim.animFrame = anim.windowPositions[anim.windowIndex - 1] || 0;
 	}
 
 	const processImage = async (file) => {
@@ -389,6 +399,7 @@
 			let img = new Image();
 			img.onload = function() {
 				spritesheetSrc.dimensions = {width: this.width, height: this.height}
+
 			}
 			img.src = fileReader.result;
 		};
@@ -437,48 +448,6 @@
 		overflow-x: scroll;
 	}
 
-	#timeline-controls {
-		grid-row: 2 / 3;
-		grid-column: 2 / 3;
-		position: relative;
-		padding: 3px;
-		display: grid;
-	}
-
-	#current-frame-label {
-		display: inline-block; 
-		text-align: right;
-		border-radius: 2px;
-		border: 1px solid #DDD;
-	}
-	#current-frame-label:hover { background-color: #0004; }
-	#current-frame-label.active {
-		background-color: #0004;
-		color: white;
-		border: 1px solid black;
-	}
-
-	#timeline {
-		background-color: #FFF;
-		grid-row: 3 / 4;
-		grid-column: 2 / 3;
-		border-top: 1px solid black;
-		position: relative;
-		display: flex;
-		flex-direction: row;
-	}
-
-	#window-metadata {
-		background-color: #555;
-		border-top: 1px solid #333;
-		grid-row: 4 / 5;
-		grid-column: 2 / 3;
-		position: relative;
-		padding: 3px;
-		display: grid;
-		color: white;
-	}
-
 	#file {
 		background-color: #555;
 		border: 5px double #222;
@@ -519,24 +488,9 @@
 	input[type="file"] {
 		display: none;
 	}
-	#current-frame {
-		opacity: 0;
-		position: fixed;
-		left: 0;
-		right: 0;
-		pointer-events: none;
-	}
+	
 	.filename {
 		margin: 0;
-	}
-
-	.option-group {
-		position: absolute;
-		top: 2px;
-	}
-	.option-group i {
-		font-size: inherit;
-		line-height: 20px;
 	}
 
 	.option-container { 
@@ -574,12 +528,6 @@
 		font-size: 20px;
 		float: left;
 		vertical-align: middle;
-	}
-
-	button[disabled] {
-		background-color: transparent;
-		border: 1px dashed #DDD;
-		color: #DDD;
 	}
 
 	.inputGroup button {
@@ -638,12 +586,49 @@
 	
 </style>
 
+<svelte:window 
+	on:keydown={(evt) => {
+		switch(evt.key) {
+			case '[':
+				skipBack();
+				updateStates.frames = true;
+				break;
+			case ',':
+				if (anim.animFrame > 0) anim.animFrame --;
+				updateStates.frames = true;
+				break;
+			case ']':
+				skipAhead();
+				updateStates.frames = true;
+				break;
+			case '.':
+				if (anim.animFrame < anim.duration - 1) anim.animFrame ++;
+				updateStates.frames = true;
+				break;
+			default: 
+				for (const t of tools) {
+					if (t[1] === tools.selected) continue;
+					else if (t[2] === evt.key) {
+						tools.selected = t[1];
+						break;
+					}
+				}	
+		}
+		
+	}}
+/>
+
+<Modal on:close={() => modalVisible = false} bind:visible={modalVisible}/>
+
+<LocalStorageFS saveMode={false} active={false}/>
 <div id="app">
 	<div id="file">
 		<div class="inputGroup">
-			<label for="spritesheet-upload">upload spritesheet:</label>
+			<button on:click={() => modalVisible = true}>Help / Credits</button>
+			<label for="spritesheet-upload">
+				<button style="pointer-events: none">upload spritesheet</button>
+			</label>
 			<input id="spritesheet-upload" type="file" on:change={async (evt) => {spritesheetSrc.file = evt.target.files[0]; processImage(evt.target.files[0])}}>
-			<p class="filename">{spritesheetSrc ? spritesheetSrc.file.name : '...'}</p>
 		</div>
 		<div class="inputGroup">
 			<label for="framecount">number of frames in spritesheet:</label>
@@ -672,10 +657,17 @@
 					font-family: monospace;
 					background-color: black;
 				"
-			></textarea>
-		</div>
-
-		
+			/>
+			<button on:click={exportWIP}>
+				<i class="material-icons">attachment</i><span>export WIP</span>
+			</button>
+			<label for="import-wip" >
+				<button style="pointer-events: none">
+					<i class="material-icons">attachment</i><span>import WIP</span>			
+				</button>
+			</label>
+			<input id="import-wip" type="file" accept=".roab" on:change={loadWIP} />
+		</div>		
 	</div>
 	<div id="frames">
 		<div class="frameContainer"
@@ -701,125 +693,18 @@
 			{/each}
 		</div>
 	</div>
-	<div id="timeline-controls">
-		<div class="option-group" style="justify-self: left">
-			<input 
-				type="number"
-				id="current-frame"
-				bind:value={anim.animFrame}
-				on:focus={(evt) => {isCurrentFrameFocused = true; evt.target.select()}}
-				on:blur={() => isCurrentFrameFocused = false}
-				min="0" max="{anim.duration - 1}">
-			<p style="width: 150px; margin: 0; display: inline-block">
-				frame: <label 
-					bind:this={currentFrameLabel} 
-					style="width: {anim.duration.toString().length * 10 + 10}px" 
-					id="current-frame-label"
-					class={(isCurrentFrameFocused) ? 'active' : ''}
-					for="current-frame"
-				>
-					{anim.animFrame + 1}
-				</label> / {anim.duration};
-			</p>
-			
-			<div style="width: 400px; margin: 0; display: inline-block">
-				window: {anim.windowIndex + 1} / {windows.length}
-				<button on:click={handleWindowAddition}><i class="material-icons">add</i></button>
-				<button on:click={handleWindowDeletion} disabled="{windows.length <= 1}"><i class="material-icons">delete</i></button>
-			</div>
-		</div>
-		<div class="option-group" style="justify-self: center;">
-			<button on:click={ ()=>{anim.loop = !anim.loop} }><i class="material-icons">loop</i></button>
-			<button on:click={skipBack} disabled="{anim.animFrame === 0}"><i class="material-icons">skip_previous</i></button>
-			<button on:click={startPlaying}><i class="material-icons">{anim.playing ? 'pause' : 'play_arrow'}</i></button>
-			<button on:click={skipAhead} disabled="{anim.animFrame === anim.duration - 1}"><i class="material-icons">skip_next</i></button>
-		</div>
-		<div class="option-group" style="justify-self: right;">
-			playback speed:
-			<select bind:value={anim.playSpeed}>
-				<option value="0.25">1/4x</option>
-				<option value="0.5">1/2x</option>
-				<option value="1" selected>1x</option>
-			</select>
-		</div>
-	</div>
-	<div id="timeline">
-		{#each windows as win, i}
-			<div class="window"
-				on:click={() => {anim.animFrame = anim.windowPositions[i]; editingMode = "window"}}
-				style="
-					height: 100%;
-					flex-grow: {win.data.AG_WINDOW_LENGTH.value};
-					background-color: {win.meta.color};
-					border-right: {(i !== windows.length - 1) ? '1px solid black' : 'none'};
-					display: grid;
-					position: relative;
-					box-shadow: {anim.windowIndex == i ? 'inset 0 0 5px black' : 'none'};
-				"
-			>
-				<p style="justify-self: center; align-self: center; margin: 0; position: absolute;">{win.meta.name}</p>
-			</div>
-		{/each}
-		<div id="playhead" 
-			style="
-				height: 100%;
-				width: 2px;
-				background-color: #8888;
-				box-shadow: 0 0 0 1px #000;
-				position: absolute;
-				margin-left: {(anim.duration != 0) ? anim.animFrame * 100 / anim.duration : 0}%;
-			"
+	<Timeline 
+		bind:anim={anim} 
+		bind:windows={windows} 
+		bind:hitboxes={hitboxes} 
+		bind:editingMode={editingMode}
+		bind:updateStates={updateStates}
+		skipAhead={skipAhead} 
+		skipBack={skipBack}
+		winProps={winProps}
 		/>
-	</div>
-	<div id="window-metadata">
-		<div class="option-group">
-			<label style="display: inline-block">
-				name:
-				{#if editingMode === 'window'} 
-					<input type="text" bind:value={windows[anim.windowIndex].meta.name}>
-				{:else if editingMode === 'hitbox'}
-					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.name}>
-				{/if}
-			</label>
-			<label style="display: inline-block">
-				color:
-				{#if editingMode === 'window'} 
-					<input type="text" bind:value={windows[anim.windowIndex].meta.color}>
-				{:else if editingMode === 'hitbox'}
-					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.color}>
-				{/if}			
-			</label>
-		</div>
-	</div>
 	<div id="main" 
 		bind:this={renderer}
-		tabindex="0"
-		
-		on:keydown={(evt) => {
-			switch(evt.key) {
-				case '[':
-					skipBack();
-					break;
-				case ',':
-					if (anim.animFrame > 0) anim.animFrame --;
-					break;
-				case ']':
-					skipAhead();
-					break;
-				case '.':
-					if (anim.animFrame < anim.duration - 1) anim.animFrame ++;
-					break;
-				default: 
-					for (const t of tools) {
-						if (t[1] === tools.selected) continue;
-						else if (t[2] === evt.key) {
-							tools.selected = t[1];
-							break;
-						}
-					}	
-			}
-			
-		}}
 		on:mousemove={(evt) => {
 			if (renderer.dragging) {
 				switch(tools.selected) {
@@ -828,13 +713,16 @@
 							case 'hitbox':
 								hitboxes[hitboxes.selected].data.HG_HITBOX_X.value += evt.movementX/anim.zoom;
 								hitboxes[hitboxes.selected].data.HG_HITBOX_Y.value += evt.movementY/anim.zoom;
+								updateStates.hitboxes = true;
 								break;
 							case 'angle-indicator':
 								hitboxes[hitboxes.selected].data.HG_ANGLE.value = 180 - Math.atan2(renderer.mouseOrigin[1] - evt.pageY, renderer.mouseOrigin[0] - evt.pageX) * 180/Math.PI;
+								updateStates.hitboxes = true;
 								break;
 							case 'resizer':
 								hitboxes[hitboxes.selected].data.HG_WIDTH.value = Math.ceil(Math.abs((renderer.mouseOrigin[0] - evt.pageX)/anim.zoom));
 								hitboxes[hitboxes.selected].data.HG_HEIGHT.value = Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom));
+								updateStates.hitboxes = true;
 								break;
 							default:
 								anim.cameraX -= evt.movementX;
@@ -870,18 +758,20 @@
 				if (tools.selected === 'eraser') {
 					editingMode = 'window';
 					hitboxes.splice(evt.target.getAttributeNS(null, 'data-index'), 1);
-					hitboxes.forceUpdate = true;
+					updateStates.hitboxes = true;
 				} else {
 					editingMode = 'hitbox';
 					hitboxes.selected = parseInt(evt.target.getAttributeNS(null, 'data-index'));
 					const hb = hitboxes[hitboxes.selected];
 					const br = hb.meta.el.getBoundingClientRect();
 					renderer.mouseOrigin = [br.left + (br.right - br.left)/2, br.top + (br.bottom - br.top)/2];
+					updateStates.hitboxes = true;
 				}
 
 			} else {
 				if (renderer.target === "resizer") {
 					hitboxes.selected = parseInt(evt.target.getAttributeNS(null, 'data-index'));
+					updateStates.hitboxes = true;
 				}
 				renderer.mouseOrigin = [evt.pageX, evt.pageY];
 			}
@@ -897,15 +787,17 @@
 						case 'hitbox':
 							hb.data.HG_HITBOX_X.value = Math.round(hb.data.HG_HITBOX_X.value);
 							hb.data.HG_HITBOX_Y.value = Math.round(hb.data.HG_HITBOX_Y.value);
+							updateStates.hitboxes = true;
 							break;
 						case 'angle-indicator':
 							hb.data.HG_ANGLE.value = Math.round(hb.data.HG_ANGLE.value);
+							updateStates.hitboxes = true;
 							break;
 						case 'resizer':
 							if (hb.data.HG_WIDTH.value === 0 || hb.data.HG_HEIGHT.value === 0) {
 								editingMode = 'window';
 								hitboxes.splice(hitboxes.selected, 1);
-								hitboxes.forceUpdate = true;
+								updateStates.hitboxes = true;
 							}
 						default:
 							break;
@@ -926,6 +818,7 @@
 					attributes.HG_WINDOW_CREATION_FRAME.value = anim.windowFrame;
 					hitboxes.push({meta: {color: '#f008', stroke: '#fFF8', strokeWidth: 0.5, el: null}, data: attributes});
 					hitboxes.selected = hitboxes.length - 1;
+					updateStates.hitboxes = true;
 					editingMode = 'hitbox';
 					break;
 			}
@@ -962,6 +855,11 @@
 						<label>
 							show motion: 
 							<input type="checkbox" bind:checked={anim.movement} />
+							<span class="checkmark"></span>
+						</label>
+						<label>
+							play sounds: 
+							<input type="checkbox" bind:checked={anim.audio} />
 							<span class="checkmark"></span>
 						</label>
 					</div>
@@ -1037,7 +935,7 @@
 					stroke-width="2"
 					fill="none"
 				/>
-				{#if char.position_locked.value}
+				{#if char.position_locked.value || tools.selected !== "pan"}
 					<image 
 						x="{calc.sprXPos}"
 						y="{calc.sprYPos}"
@@ -1176,13 +1074,29 @@
 	</div>
 	<div id="settings">
 		{#if editingMode === 'window'}
-			<ParamsBuilder isDisabled={isDisabled} bind:props={windows[anim.windowIndex].data} />
+			<ParamsBuilder 
+				isDisabled={isDisabled} 
+				bind:props={windows[anim.windowIndex].data} 
+				on:dataChanged={() => {updateStates.length = true; updateStates.movement = true; updateStates.frames = true;}}
+			/>
 		{:else if editingMode === 'hitbox'}
-			<ParamsBuilder isDisabled={isDisabled} bind:props={hitboxes[hitboxes.selected].data} />
+			<ParamsBuilder 
+				isDisabled={isDisabled} 
+				bind:props={hitboxes[hitboxes.selected].data} 
+				on:dataChanged={() => updateStates.hitboxes = true}
+			/>
 		{:else if editingMode === 'atkData'}
-			<ParamsBuilder isDisabled={isDisabled} bind:props={atkData} />
+			<ParamsBuilder 
+				isDisabled={isDisabled} 
+				bind:props={atkData} 
+				on:dataChanged={() => updateStates.movement = true} 
+			/>
 		{:else if editingMode === 'chrData'}
-			<ParamsBuilder isDisabled={isDisabled} bind:props={char} />
+			<ParamsBuilder 
+				isDisabled={isDisabled} 
+				bind:props={char} 
+				on:dataChanged={() => updateStates.movement = true} 
+			/>
 		{/if}
 	</div>
 </div>

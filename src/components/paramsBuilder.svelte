@@ -1,8 +1,11 @@
 <script>
+    import { createEventDispatcher } from 'svelte';
+
     export let props = {};
     export let isDisabled = false;
     let items = [];
 
+    const dispatch = createEventDispatcher();
 </script>
 
 <style>
@@ -12,7 +15,9 @@
         
     }
 
-    input {
+    input, select {
+        min-width: 180px;
+        max-width: 180px;
         padding-left: 3px;
     }
 
@@ -71,17 +76,24 @@
             }}
         >
         {#if Array.isArray(val.type)}
-            <select bind:value={props[key].value}>
+            <select bind:value={props[key].value} on:change={() => dispatch('dataChanged')}>
                 {#each val.type as choice}
                     <option value="{choice}" selected="{choice === val.value}">{choice}</option>
                 {/each}
             </select>
         {:else if val.type === 'number'}
-            <input type="number" bind:value={props[key].value} /> 
+            <input type="number" bind:value={props[key].value} on:change={() => dispatch('dataChanged')} /> 
         {:else if val.type === 'string'}
-            <input type="text" bind:value={props[key].value} /> 
+            <input type="text" bind:value={props[key].value} on:change={() => dispatch('dataChanged')}/> 
         {:else if val.type === 'auto'}
             <input type="text" bind:value={props[key].value} disabled /> 
+        {:else}
+            <select bind:value={props[key].value} on:change={() => dispatch('dataChanged')}>
+                {#each JSON.parse(val.options) as choice}
+                    <option value="{choice}" selected="{choice === val.value}">{choice}</option>
+                {/each}
+            </select>
+            <input type="text" bind:value={props[key].value} on:change={() => dispatch('dataChanged')} /> 
         {/if}
         </div>
     {/if}
