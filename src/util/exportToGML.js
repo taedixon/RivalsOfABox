@@ -54,26 +54,26 @@ export default (charData, atkData, windows, hitboxes) => {
     if (Object.keys(ATK_INDEXES).includes(atkData.ATK_INDEX.value.toString())) ATK_NAME = ATK_INDEXES[parseInt(atkData.ATK_INDEX.value.toString())];
     else ATK_NAME = atkData.ATK_INDEX.value;
 
-    for (const [key, entry] of Object.entries(charData)) {        
+    for (const [key, entry] of Object.entries(charData)) {
         switch (key) {
             case 'sprite_offset_x':
             case 'sprite_offset_y':
             case 'position_locked':
                 continue;
 
-            default: 
+            default:
                 out_INIT += `${key} = ${entry.value};\n`;
         }
     }
     out_LOAD += spriteOffsetChangeTemplate
         .replace('__VALUEX__', charData.sprite_offset_x.value)
-        .replace('__VALUEY__', charData.sprite_offset_y.value * -1) 
+        .replace('__VALUEY__', charData.sprite_offset_y.value * -1)
         + '\n';
 
-    for (const [key, entry] of Object.entries(atkData)) {    
+    for (const [key, entry] of Object.entries(atkData)) {
         if ([null, undefined, '...', '--REPLACE_ME--', 0].includes(entry.value)) continue;
         switch (key) {
-            case 'ATK_INDEX': 
+            case 'ATK_INDEX':
                 continue;
             case 'AG_SPRITE':
             case 'AG_AIR_SPRITE':
@@ -85,7 +85,7 @@ export default (charData, atkData, windows, hitboxes) => {
                     .replace("__VALUE__", entry.value)
                     + '\n'
                 break;
-            default: 
+            default:
                 out_ATK += setAtkValTemplate
                     .replace("__ATKNAME__", ATK_NAME)
                     .replace("__AGINDEX__", key)
@@ -96,7 +96,7 @@ export default (charData, atkData, windows, hitboxes) => {
     out_ATK += `\nset_attack_value(${ATK_NAME}, AG_NUM_WINDOWS, ${windows.length});\n`;
 
     for (const [i, win] of windows.entries()) {
-        for (const [key, entry] of Object.entries(win.data)) {    
+        for (const [key, entry] of Object.entries(win.data)) {
             if ([null, undefined, '...', 0].includes(entry.value)) continue;
             out_ATK += setWinValTemplate
                 .replace("__ATKNAME__", ATK_NAME)
@@ -107,12 +107,12 @@ export default (charData, atkData, windows, hitboxes) => {
         }
         out_ATK += '\n';
     }
-    out_ATK += '\n' + 
+    out_ATK += '\n' +
         setHbNumTempalte
         .replace("__ATKNAME__", ATK_NAME)
         .replace("__VALUE__", hitboxes.length)
         + '\n';
-    
+
 
     const hbs = hitboxes.sort((a, b) => {
         if (a.data.HG_WINDOW.value < b.data.HG_WINDOW.value) return -1;
@@ -122,15 +122,13 @@ export default (charData, atkData, windows, hitboxes) => {
         return 0;
     })
     for (const [i, hb] of hbs.entries()) {
-        for (const [key, entry] of Object.entries(hb.data)) {  
+        for (const [key, entry] of Object.entries(hb.data)) {
             if ([null, undefined, '...', 0].includes(entry.value) && !["HG_WINDOW_CREATION_FRAME", "HG_WINDOW"].includes(key)) continue;
 
             // because I made a few silly miscalculations
-            if (key === "HG_HITBOX_X") entry.value -= charData.sprite_offset_x.value; 
-            else if (key === "HG_HITBOX_Y") entry.value += charData.sprite_offset_y.value; 
-            else if (key === "HG_WINDOW") entry.value ++;
+            if (key === "HG_WINDOW") entry.value ++;
             else if (key === "HG_WINDOW_CREATION_FRAME") entry.value ++;
-            
+
             out_ATK += setHbValTemplate
                 .replace("__ATKNAME__", ATK_NAME)
                 .replace("__HITBOXNUM__", i + 1)

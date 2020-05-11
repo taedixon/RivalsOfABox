@@ -306,7 +306,7 @@
 	// common computations
 	$: {
 		calc.frameWidth = spritesheetSrc.dimensions.width / spritesheetSrc.framecount;
-		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset_x.value) - calc.frameWidth / 2;
+		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset_x.value) - calc.frameWidth;
 		calc.sprYPos = anim.ypos + Math.floor(char.sprite_offset_y.value);
 		if (!anim.movement) {
 			calc.sprXPos += anim.xpos;
@@ -388,6 +388,7 @@
 	let loadGMLCode = 'nothing exported yet';
 	let attackGMLCode = 'nothing exported yet';
 	let outputBox = 'stuff will appear here when the above buttons are clicked...';
+
 	const gmlExport = () => {
 		const strings = exporter(char, atkData, windows, JSON.parse(JSON.stringify(hitboxes)));
 		initGMLCode = strings.out_INIT;
@@ -533,7 +534,7 @@
 	.tab[active="true"] { background-color: transparent; }
 	.tab[active="false"] { background-color: #0004; }
 	.tool-container {grid-column: 1 / 3; padding: 10px;}
-	.option-param, .stats { pointer-events: auto; width: auto;}
+	.option-param { pointer-events: auto; width: auto;}
 
 	button.tool {
 		height: 30px;
@@ -838,8 +839,8 @@
 					attributes.HG_HEIGHT.value = 2 * Math.ceil(Math.abs((renderer.mouseOrigin[1] - evt.pageY)/anim.zoom));
 					if (attributes.HG_WIDTH.value === 0 || attributes.HG_HEIGHT.value === 0) break;
 
-					attributes.HG_HITBOX_X.value = Math.floor(renderer.svgPosition[0]) - calc.sprXPos - calc.frameWidth * (anim.spriteFrame);
-					attributes.HG_HITBOX_Y.value = Math.floor(renderer.svgPosition[1]) - calc.sprYPos;
+					attributes.HG_HITBOX_X.value = Math.floor(renderer.svgPosition[0]);
+					attributes.HG_HITBOX_Y.value = Math.floor(renderer.svgPosition[1]);
 					attributes.HG_SHAPE.value = ["circle", "rectangle", "round"].indexOf(tools.selected);
 					attributes.HG_WINDOW.value = anim.windowIndex;
 					attributes.HG_WINDOW_CREATION_FRAME.value = anim.windowFrame;
@@ -990,8 +991,8 @@
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
-								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame + 1)}"
+								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value}"
 								rx="{hitbox.data.HG_WIDTH.value / 2}"
 								ry="{hitbox.data.HG_HEIGHT.value / 2}"
 								fill="{hitbox.meta.color}"
@@ -1003,8 +1004,8 @@
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}"
-								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value  - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame+1)}"
+								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value - hitbox.data.HG_HEIGHT.value / 2}"
 								width="{hitbox.data.HG_WIDTH.value}"
 								height="{hitbox.data.HG_HEIGHT.value}"
 								fill="{hitbox.meta.color}"
@@ -1016,8 +1017,8 @@
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}"
-								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value  - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame+1)}"
+								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value - hitbox.data.HG_HEIGHT.value / 2}"
 								rx="{hitbox.data.HG_WIDTH.value * 0.25}"
 								ry="{hitbox.data.HG_HEIGHT.value * 0.25}"
 								width="{hitbox.data.HG_WIDTH.value}"
@@ -1030,17 +1031,19 @@
 						<line
 							class="angle-indicator"
 							data-index={i}
-							x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
+							x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame+1)}"
 							x2="{
 								calc.sprXPos
 								+ hitbox.data.HG_HITBOX_X.value
+								- char.sprite_offset_x.value
 								+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180)
 								* hitbox.data.HG_WIDTH.value / 2
-								+ calc.frameWidth * (anim.spriteFrame)}"
-							y1="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+								+ calc.frameWidth * (anim.spriteFrame+1)}"
+							y1="{calc.sprYPos - char.sprite_offset_y.value + hitbox.data.HG_HITBOX_Y.value}"
 							y2="{
 								calc.sprYPos
 								+ hitbox.data.HG_HITBOX_Y.value
+								- char.sprite_offset_y.value
 								+ Math.sin(hitbox.data.HG_ANGLE.value * -Math.PI/180)
 								* hitbox.data.HG_HEIGHT.value / 2}"
 							stroke="#0008" stroke-width="{4/anim.zoom}" stroke-dasharray="{(hitbox.data.HG_ANGLE.value === 361) ? 4/anim.zoom : 0}"
@@ -1049,8 +1052,8 @@
 							<circle
 								class="resizer"
 								data-index={i}
-								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
-								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame+1)}"
+								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value}"
 								r="{4/anim.zoom}"
 							/>
 						{/if}
