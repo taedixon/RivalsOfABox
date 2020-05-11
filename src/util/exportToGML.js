@@ -3,7 +3,7 @@ const setAtkValSpriteTemplate = `set_attack_value(__ATKNAME__, __AGINDEX__, spri
 const setWinValTemplate = `set_window_value(__ATKNAME__, __WINDOWNUM__, __AGINDEX__, __VALUE__);`;
 const setHbNumTempalte = `set_num_hitboxes(__ATKNAME__, __VALUE__);`;
 const setHbValTemplate = `set_hitbox_value(__ATKNAME__, __HITBOXNUM__, __HGINDEX__, __VALUE__);`;
-const spriteOffsetChangeTemplate = `sprite_change_offset("--REPLACE_ME--", __VALUEX__, __VALUEY__)`;
+const spriteOffsetChangeTemplate = `sprite_change_offset("__SPRITE__", __VALUEX__, __VALUEY__)`;
 
 export const ATK_INDEXES = {
     1: "AT_JAB",
@@ -66,6 +66,7 @@ export default (charData, atkData, windows, hitboxes) => {
         }
     }
     out_LOAD += spriteOffsetChangeTemplate
+        .replace("__SPRITE__", atkData.AG_SPRITE.value)
         .replace('__VALUEX__', charData.sprite_offset_x.value)
         .replace('__VALUEY__', charData.sprite_offset_y.value * -1)
         + '\n';

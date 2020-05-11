@@ -346,8 +346,8 @@
 		fullUpdate();
 	}
 	const exportWIP = () => {
+		gmlExport();
 		const filename = ATK_INDEXES[+atkData.ATK_INDEX.value] || "UNKNOWN";
-
 		const data = JSON.stringify({
 			anim,
 			windows: strip(windows),
@@ -355,6 +355,11 @@
 			spritesheetSrc,
 			char: strip(char),
 			atkData,
+			gml: {
+				init: initGMLCode,
+				load: loadGMLCode,
+				attack: attackGMLCode,
+			}
 		});
 		const url = URL.createObjectURL(new Blob([data]))
 		const link = document.createElement("a");
@@ -380,6 +385,12 @@
 		spritesheetSrc = d.spritesheetSrc;
 		char = populate(d.char, charProps);
 		atkData = d.atkData;
+
+		if (d.gml) {
+			loadGMLCode = d.gml.load;
+			initGMLCode = d.gml.init;
+			attackGMLCode = d.gml.attack;
+		}
 
 		fullUpdate();
 	}
