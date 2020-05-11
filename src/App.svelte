@@ -1,22 +1,21 @@
 <script>
 	import LZS from 'lz-string';
 	import store from 'store2';
-	import streamSaver from 'streamsaver';
-	
+
 	import ParamsBuilder from './components/paramsBuilder.svelte';
 	import Timeline from './components/timeline.svelte';
 	import LocalStorageFS from './components/LocalStorageFS.svelte';
 	import Modal from './atoms/modal.svelte';
 
 	import {
-		default as winProps, 
+		default as winProps,
 		isDisabled
 	} from './util/windowProperties.js';
 	import hitboxProps from './util/hitboxProperties.js';
 	import atkDataProps from './util/atkDataProperties.js';
 	import charProps from './util/characterProperties.js';
 	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js';
-	import { strip, populate } from './util/importExportData.js';
+	import { strip, populate, exportData, importData } from './util/importExportData.js';
 	import exporter from './util/exportToGML.js';
 	import { ATK_INDEXES } from "./util/exportToGML.js";
 
@@ -60,9 +59,9 @@
 	let mainViewInfo = true;
 	let activeEl;
 	let tools = [
-		["pan_tool", "pan", "v"], 
-		["add_box", "rectangle", "b"], 
-		["rounded_corner", "round", "r"], 
+		["pan_tool", "pan", "v"],
+		["add_box", "rectangle", "b"],
+		["rounded_corner", "round", "r"],
 		["add_circle", "circle", "o"],
 		["clear", "eraser", "Backspace"]
 
@@ -71,12 +70,12 @@
 
 	let renderer;
 	let rend;
-	$: rend = (renderer) ? renderer : {};
+	$: rend = (renderer) ? renderer : {clientWidth: 100, clientHeight: 100};
 
 	let anim = {
 		// controlled
 		animFrame: 0,
-		playSpeed: 1, 
+		playSpeed: 1,
 		playing: false,
 		loop: true,
 		zoom: 2,
@@ -105,7 +104,7 @@
 		windowPositions: [],
 
 		hitboxFrames: {},
-		
+
 		xpos: 0,
 		ypos: 0,
 		charFramePositionData: [],
@@ -138,12 +137,12 @@
 			if (anim.windowPositions.length !== i) anim.windowPositions[i] = acc;
 			else anim.windowPositions.push(acc);
 
-			// actually calculates the duration		
+			// actually calculates the duration
 			return acc + (win.data.AG_WINDOW_LENGTH.value || 1)
 		} , 0);
 		if (temp !== anim.duration) updateStates.movement = true;
 	}
-	
+
 	// movement calculations
 	$: if (anim.movement && updateStates.movement) {
 		updateStates.movement = false;
@@ -151,7 +150,7 @@
 		for (const [windex, win] of windows.entries()) {
 			let data = win.data;
 
-			// gets velocities and positions of the character sprite		
+			// gets velocities and positions of the character sprite
 			let HSpeed = 0;
 			if (data.AG_WINDOW_HSPEED && data.AG_WINDOW_HSPEED.value !== undefined) {
 				HSpeed = data.AG_WINDOW_HSPEED.value;
@@ -178,8 +177,8 @@
 				case 0:
 					for (let i = 0; i < duration; i++) {
 						movementData[i].yvel = velocityAtFrameGrav(Gravity, VSpeed + prevData.yvel, i);
-						movementData[i].ypos = (i === 0) ? 
-							prevData.ypos + movementData[i].yvel : 
+						movementData[i].ypos = (i === 0) ?
+							prevData.ypos + movementData[i].yvel :
 							movementData[i-1].ypos + movementData[i].yvel;
 						if (movementData[i].ypos > 0) {
 							movementData[i].ypos = 0;
@@ -190,8 +189,8 @@
 				case 1:
 					for (let i = 0; i < duration; i++) {
 						movementData[i].yvel = VSpeed;
-						movementData[i].ypos = (i === 0) ? 
-							prevData.ypos + movementData[i].yvel : 
+						movementData[i].ypos = (i === 0) ?
+							prevData.ypos + movementData[i].yvel :
 							movementData[i-1].ypos + movementData[i].yvel;
 						if (movementData[i].ypos > 0) {
 							movementData[i].ypos = 0;
@@ -199,11 +198,11 @@
 						}
 					}
 					break;
-				case 2: 
+				case 2:
 					for (let i = 0; i < duration; i++) {
 						movementData[i].yvel = velocityAtFrameGrav(Gravity, VSpeed, i);
-						movementData[i].ypos = (i === 0) ? 
-							prevData.ypos + movementData[i].yvel : 
+						movementData[i].ypos = (i === 0) ?
+							prevData.ypos + movementData[i].yvel :
 							movementData[i-1].ypos + movementData[i].yvel;
 						if (movementData[i].ypos > 0) {
 							movementData[i].ypos = 0;
@@ -231,7 +230,7 @@
 						movementData[i].xpos = ref.xpos + movementData[i].xvel
 					}
 					break;
-				case 2: 
+				case 2:
 					for (let i = 0; i < duration; i++) {
 						let ref = (i === 0) ? prevData : movementData[i-1];
 						let fric = (ref.ypos === 0) ? HFriction : HFrictionAir;
@@ -348,24 +347,33 @@
 	}
 	const exportWIP = () => {
 		const filename = ATK_INDEXES[+atkData.ATK_INDEX.value] || "UNKNOWN";
-		const fileStream = streamSaver.createWriteStream(`${filename}.roab`);
-		const data = (LZS.compressToUint8Array(JSON.stringify({
+
+		const data = JSON.stringify({
 			anim,
 			windows: strip(windows),
 			hitboxes: strip(hitboxes),
 			spritesheetSrc,
 			char: strip(char),
 			atkData,
-		})))
-
-		new Response(data).body
-			.pipeTo(fileStream)
+		});
+		const url = URL.createObjectURL(new Blob([data]))
+		const link = document.createElement("a");
+		link.download = `${filename}.json`;
+		link.href = url;
+		link.click();
 	}
+
 	const loadWIP = async (evt) => {
 		const file = evt.target.files[0];
-		const data = new Uint8Array(await file.arrayBuffer());
-		const d = JSON.parse(LZS.decompressFromUint8Array(data));
-		
+		let d;
+		if (file.name.match(/\.roab$/)) {
+			const data = new Uint8Array(await file.arrayBuffer());
+			d = JSON.parse(LZS.decompressFromUint8Array(data));
+		} else {
+			const data = await file.text();
+			d = JSON.parse(data);
+		}
+
 		anim = d.anim;
 		windows = populate(d.windows, winProps);
 		hitboxes = populate(d.hitboxes, hitboxProps);
@@ -501,7 +509,7 @@
 		user-select: none;
 	}
 
-	.inputGroup { 
+	.inputGroup {
 		width: 100%;
 		height: auto;
 		padding: 10px;
@@ -511,8 +519,8 @@
 		display: none;
 	}
 
-	.option-container { 
-		position: absolute; 
+	.option-container {
+		position: absolute;
 		background-color: #FFF8;
 		border-bottom-right-radius: 2px;
 		user-select: none;
@@ -601,10 +609,10 @@
 	input[type="checkbox"]:checked ~ .checkmark::after {
 		opacity: 1;
 	}
-	
+
 </style>
 
-<svelte:window 
+<svelte:window
 	on:keydown={(evt) => {
 		switch(evt.key) {
 			case '[':
@@ -623,16 +631,16 @@
 				if (anim.animFrame < anim.duration - 1) anim.animFrame ++;
 				updateStates.frames = true;
 				break;
-			default: 
+			default:
 				for (const t of tools) {
 					if (t[1] === tools.selected) continue;
 					else if (t[2] === evt.key) {
 						tools.selected = t[1];
 						break;
 					}
-				}	
+				}
 		}
-		
+
 	}}
 />
 
@@ -655,7 +663,7 @@
 		<div class="inputGroup">
 			<button on:click={() => editingMode = 'atkData'}><i class="material-icons">edit</i><span>edit attack data</span></button>
 			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
-		</div> 
+		</div>
 		<div class="inputGroup">
 			<button on:click={save}><i class="material-icons">save_alt</i><span>save to browser</span></button>
 			<button on:click={load}><i class="material-icons">unarchive</i><span>load from browser</span></button>
@@ -665,9 +673,9 @@
 			<button on:click={() => outputBox = initGMLCode}><i class="material-icons">attachment</i><span>init.gml</span></button>
 			<button on:click={() => outputBox = loadGMLCode}><i class="material-icons">attachment</i><span>load.gml</span></button>
 			<button on:click={() => outputBox = attackGMLCode}><i class="material-icons">attachment</i><span>[attackname].gml</span></button>
-			<textarea 
+			<textarea
 				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-				bind:value={outputBox} 
+				bind:value={outputBox}
 				style="
 					height: 300px;
 					width: 100%;
@@ -682,11 +690,11 @@
 			</button>
 			<label for="import-wip" >
 				<button style="pointer-events: none">
-					<i class="material-icons">attachment</i><span>import WIP</span>			
+					<i class="material-icons">attachment</i><span>import WIP</span>
 				</button>
 			</label>
-			<input id="import-wip" type="file" accept=".roab" on:change={loadWIP} />
-		</div>		
+			<input id="import-wip" type="file" accept=".roab,.json" on:change={loadWIP} />
+		</div>
 	</div>
 	<div id="frames">
 		<div class="frameContainer"
@@ -712,22 +720,22 @@
 			{/each}
 		</div>
 	</div>
-	<Timeline 
-		bind:anim={anim} 
-		bind:windows={windows} 
-		bind:hitboxes={hitboxes} 
+	<Timeline
+		bind:anim={anim}
+		bind:windows={windows}
+		bind:hitboxes={hitboxes}
 		bind:editingMode={editingMode}
 		bind:updateStates={updateStates}
-		skipAhead={skipAhead} 
+		skipAhead={skipAhead}
 		skipBack={skipBack}
 		winProps={winProps}
 		/>
-	<div id="main" 
+	<div id="main"
 		bind:this={renderer}
 		on:mousemove={(evt) => {
 			if (renderer.dragging) {
 				switch(tools.selected) {
-					case "pan": 
+					case "pan":
 						switch(renderer.target) {
 							case 'hitbox':
 								hitboxes[hitboxes.selected].data.HG_HITBOX_X.value += evt.movementX/anim.zoom;
@@ -761,10 +769,10 @@
 						if (tools.selected === "round") {
 							activeEl.setAttributeNS(null, 'rx', parseInt(activeEl.getAttribute('width')) * 0.25);
 							activeEl.setAttributeNS(null, 'ry', parseInt(activeEl.getAttribute('height')) * 0.25);
-							
+
 						}
 						break;
-				}	
+				}
 			} else {
 				calc.mouseX = evt.clientX; calc.mouseY = evt.clientY
 			}
@@ -867,26 +875,26 @@
 					</div>
 					<div class="option-param" style="justify-self: right; display: block;">
 						<label>
-							lock offset: 
+							lock offset:
 							<input type="checkbox" bind:checked={char.position_locked.value} />
 							<span class="checkmark"></span>
 						</label>
 						<label>
-							show motion: 
+							show motion:
 							<input type="checkbox" bind:checked={anim.movement} />
 							<span class="checkmark"></span>
 						</label>
 						<label>
-							play sounds: 
+							play sounds:
 							<input type="checkbox" bind:checked={anim.audio} />
 							<span class="checkmark"></span>
 						</label>
 					</div>
 				{:else}
 					{#each tools as tool}
-						<button 
-							class="tool" 
-							on:click={() => tools.selected = tool[1]} 
+						<button
+							class="tool"
+							on:click={() => tools.selected = tool[1]}
 							active={tools.selected === tool[1]}>
 							<i class="material-icons">{tool[0]}</i><span>{tool[1]}</span>
 						</button>
@@ -894,17 +902,16 @@
 					{/each}
 				{/if}
 			</div>
-			
+
 		</div>
 		<div class="grid" style="width: 100%; height: 100%; position: absolute; top:0; left: 0; display: grid; image-rendering: pixelated;">
-			<svg 
-				version="2.0" 
-				style="width: 100%; height: 100%;" 
-				viewBox="
-					{(anim.cameraX - rend.clientWidth) / 2 / anim.zoom} 
-					{(anim.cameraY - rend.clientHeight) / 2 / anim.zoom} 
-					{rend.clientWidth / anim.zoom} 
-					{rend.clientHeight / anim.zoom}"
+			<svg
+				version="2.0"
+				style="width: 100%; height: 100%;"
+				viewBox="{(anim.cameraX - rend.clientWidth) / 2 / anim.zoom}
+{(anim.cameraY - rend.clientHeight) / 2 / anim.zoom}
+{rend.clientWidth / anim.zoom}
+{rend.clientHeight / anim.zoom}"
 			>
 				<defs>
 					<filter id="blur" x="0" y="0">
@@ -916,11 +923,11 @@
 					<mask id="mouseMask">
 						<circle cx="{calc.relMouseX}" cy="{calc.relMouseY}" r="{anim.gridViewerRadius / anim.zoom}" fill="white" filter="url(#blur)"/>
 					</mask>
-				</defs>		
+				</defs>
 				<path d="
 					M {-4 * rend.clientWidth / 2} 0
 					h {rend.clientWidth * 4}
-				" 
+				"
 					stroke-width="{2 / anim.zoom}"
 					stroke="#000F"
 					shape-rendering="crispEdges"
@@ -928,7 +935,7 @@
 				<path d="
 					M 0 {-4 * rend.clientHeight / 2}
 					v {rend.clientHeight * 4}
-				" 
+				"
 					stroke-width="{2 / anim.zoom}"
 					stroke="#000F"
 					shape-rendering="crispEdges"
@@ -939,7 +946,7 @@
 					shape-rendering="crispEdges"
 					mask="url(#mouseMask)"
 				/>
-				<rect 
+				<rect
 					x="{calc.sprXPos + calc.frameWidth * (anim.spriteFrame)}"
 					y="{calc.sprYPos}"
 					width="{calc.frameWidth}"
@@ -949,7 +956,7 @@
 					fill="none"
 				/>
 				{#if char.position_locked.value || tools.selected !== "pan"}
-					<image 
+					<image
 						x="{calc.sprXPos}"
 						y="{calc.sprYPos}"
 						width="{spritesheetSrc.dimensions.width}"
@@ -958,7 +965,7 @@
 						clip-path="url(#spriteClip)"
 					/>
 				{:else}
-					<image 
+					<image
 						on:mousedown|stopPropagation={(evt) => evt.target.dragging = true}
 						on:mouseout|stopPropagation={(evt) => evt.target.dragging = false}
 						on:mouseup|stopPropagation={(evt) => evt.target.dragging = false}
@@ -979,11 +986,11 @@
 				{#each hitboxes as hitbox, i}
 					{#if anim.hitboxFrames[anim.animFrame] && anim.hitboxFrames[anim.animFrame].includes(i)}
 						{#if hitbox.data.HG_SHAPE.value === 0}
-							<ellipse 
+							<ellipse
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
 								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
 								rx="{hitbox.data.HG_WIDTH.value / 2}"
 								ry="{hitbox.data.HG_HEIGHT.value / 2}"
@@ -992,11 +999,11 @@
 								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
 							/>
 						{:else if hitbox.data.HG_SHAPE.value === 1}
-							<rect 
+							<rect
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}"
 								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
 								width="{hitbox.data.HG_WIDTH.value}"
 								height="{hitbox.data.HG_HEIGHT.value}"
@@ -1005,11 +1012,11 @@
 								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
 							/>
 						{:else}
-							<rect 
+							<rect
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}" 
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}"
 								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - hitbox.data.HG_HEIGHT.value / 2}"
 								rx="{hitbox.data.HG_WIDTH.value * 0.25}"
 								ry="{hitbox.data.HG_HEIGHT.value * 0.25}"
@@ -1020,29 +1027,29 @@
 								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
 							/>
 						{/if}
-						<line 
+						<line
 							class="angle-indicator"
 							data-index={i}
 							x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
 							x2="{
-								calc.sprXPos 
-								+ hitbox.data.HG_HITBOX_X.value 
-								+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
+								calc.sprXPos
+								+ hitbox.data.HG_HITBOX_X.value
+								+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180)
 								* hitbox.data.HG_WIDTH.value / 2
 								+ calc.frameWidth * (anim.spriteFrame)}"
 							y1="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
 							y2="{
-								calc.sprYPos 
-								+ hitbox.data.HG_HITBOX_Y.value 
-								+ Math.sin(hitbox.data.HG_ANGLE.value * -Math.PI/180) 
+								calc.sprYPos
+								+ hitbox.data.HG_HITBOX_Y.value
+								+ Math.sin(hitbox.data.HG_ANGLE.value * -Math.PI/180)
 								* hitbox.data.HG_HEIGHT.value / 2}"
 							stroke="#0008" stroke-width="{4/anim.zoom}" stroke-dasharray="{(hitbox.data.HG_ANGLE.value === 361) ? 4/anim.zoom : 0}"
 						/>
 						{#if tools.selected === 'pan'}
-							<circle 
+							<circle
 								class="resizer"
 								data-index={i}
-								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}" 
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value + calc.frameWidth * (anim.spriteFrame)}"
 								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value}"
 								r="{4/anim.zoom}"
 							/>
@@ -1051,7 +1058,7 @@
 				{/each}
 				{#if tools.active}
 					{#if tools.selected === 'circle'}
-						<ellipse 
+						<ellipse
 							cx="{Math.floor(calc.relMouseX)}"
 							cy="{Math.floor(calc.relMouseY)}"
 							bind:this={activeEl}
@@ -1060,8 +1067,8 @@
 							stroke-width="{4 / anim.zoom}"
 						/>
 					{:else if tools.selected === 'rectangle' || tools.selected === 'round'}
-						<rect 
-							x="{Math.floor(calc.relMouseX)}" 
+						<rect
+							x="{Math.floor(calc.relMouseX)}"
 							y="{Math.floor(calc.relMouseY)}"
 							bind:this={activeEl}
 							fill="white"
@@ -1070,7 +1077,7 @@
 						/>
 					{/if}
 				{:else if ['circle', 'rectangle', 'round'].includes(tools.selected)}
-					<ellipse 
+					<ellipse
 						style="pointer-events: none"
 						cx="{Math.floor(calc.relMouseX)}"
 						cy="{Math.floor(calc.relMouseY)}"
@@ -1080,35 +1087,35 @@
 						stroke="black"
 						stroke-width="0"
 					/>
-					
+
 				{/if}
 			</svg>
 		</div>
 	</div>
 	<div id="settings">
 		{#if editingMode === 'window'}
-			<ParamsBuilder 
-				isDisabled={isDisabled} 
-				bind:props={windows[anim.windowIndex].data} 
+			<ParamsBuilder
+				isDisabled={isDisabled}
+				bind:props={windows[anim.windowIndex].data}
 				on:dataChanged={() => {updateStates.length = true; updateStates.movement = true; updateStates.frames = true;}}
 			/>
 		{:else if editingMode === 'hitbox'}
-			<ParamsBuilder 
-				isDisabled={isDisabled} 
-				bind:props={hitboxes[hitboxes.selected].data} 
+			<ParamsBuilder
+				isDisabled={isDisabled}
+				bind:props={hitboxes[hitboxes.selected].data}
 				on:dataChanged={() => updateStates.hitboxes = true}
 			/>
 		{:else if editingMode === 'atkData'}
-			<ParamsBuilder 
-				isDisabled={isDisabled} 
-				bind:props={atkData} 
-				on:dataChanged={() => updateStates.movement = true} 
+			<ParamsBuilder
+				isDisabled={isDisabled}
+				bind:props={atkData}
+				on:dataChanged={() => updateStates.movement = true}
 			/>
 		{:else if editingMode === 'chrData'}
-			<ParamsBuilder 
-				isDisabled={isDisabled} 
-				bind:props={char} 
-				on:dataChanged={() => updateStates.movement = true} 
+			<ParamsBuilder
+				isDisabled={isDisabled}
+				bind:props={char}
+				on:dataChanged={() => updateStates.movement = true}
 			/>
 		{/if}
 	</div>

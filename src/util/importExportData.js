@@ -2,10 +2,10 @@ export const strip = (toStrip, clone = true) => {
     const stripped = (clone) ? JSON.parse(JSON.stringify(toStrip)) : toStrip;
 
     if (Array.isArray(stripped)) {
-        for (const entry of stripped) {
-            strip(entry, false);
-        }
-    } else if (stripped.data) {
+        return stripped.map(val => strip(val, clone));
+    }
+
+    if (stripped.data) {
         for (const [key, val] of Object.entries(stripped.data)) {
             stripped.data[key] = val.value;
         }
@@ -14,7 +14,7 @@ export const strip = (toStrip, clone = true) => {
             stripped[key] = val.value;
         }
     }
-    
+
     return stripped;
 }
 
@@ -48,7 +48,5 @@ export const populate = (stripped, fields, clone = true) => {
             }
         }
     }
-
-    
     return populated;
 }
