@@ -22,6 +22,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm i
+    - run: rm package-lock.json
     - run: npm run build
     - name: FTP Deploy
       uses: SamKirkland/FTP-Deploy-Action@3.1.0
