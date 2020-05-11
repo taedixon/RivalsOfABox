@@ -5,7 +5,7 @@ const setHbNumTempalte = `set_num_hitboxes(__ATKNAME__, __VALUE__);`;
 const setHbValTemplate = `set_hitbox_value(__ATKNAME__, __HITBOXNUM__, __HGINDEX__, __VALUE__);`;
 const spriteOffsetChangeTemplate = `sprite_change_offset("--REPLACE_ME--", __VALUEX__, __VALUEY__)`;
 
-const ATK_INDEXES = {
+export const ATK_INDEXES = {
     1: "AT_JAB",
     4: "AT_FTILT",
     5: "AT_DTILT",
@@ -135,7 +135,7 @@ export default (charData, atkData, windows, hitboxes) => {
                 .replace("__ATKNAME__", ATK_NAME)
                 .replace("__HITBOXNUM__", i + 1)
                 .replace("__HGINDEX__", key)
-                .replace("__VALUE__", entry.value)
+                .replace("__VALUE__", (key === 'HG_HIT_SFX') ? `asset_get("${entry.value}")` : entry.value)
                 + '\n'
         }
         out_ATK += '\n';

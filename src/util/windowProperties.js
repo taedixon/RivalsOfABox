@@ -28,12 +28,12 @@ export default {
         type: 'number'
     },
     AG_WINDOW_HSPEED: {
-        value: null,
+        value: 0,
         description: 'The horizontal speed to apply during the window in pixels per frame. The type of speed boost depends on AG_WINDOW_HSPEED_TYPE',
         type: 'number'
     },
     AG_WINDOW_VSPEED: {
-        value: null,
+        value: 0,
         description: 'The vertical speed to apply during the window in pixels per frame. The type of speed boost depends on AG_WINDOW_VSPEED_TYPE',
         type: 'number'
     },

@@ -18,12 +18,12 @@
 	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js';
 	import { strip, populate } from './util/importExportData.js';
 	import exporter from './util/exportToGML.js';
+	import { ATK_INDEXES } from "./util/exportToGML.js";
 
 	// makes a confirmation dialog appear before closing the window
 	window.onbeforeunload = (e) => 'derp';
 
-
-	let modalVisible = true;
+	let modalVisible = false;
 
 	let spritesheetSrc = {
 		file: '...',
@@ -79,7 +79,7 @@
 		playSpeed: 1, 
 		playing: false,
 		loop: true,
-		zoom: 1,
+		zoom: 2,
 		cameraX: 0,
 		cameraY: 0,
 		movement: true,
@@ -152,7 +152,10 @@
 			let data = win.data;
 
 			// gets velocities and positions of the character sprite		
-			let HSpeed = data.AG_WINDOW_HSPEED.value || 0;
+			let HSpeed = 0;
+			if (data.AG_WINDOW_HSPEED && data.AG_WINDOW_HSPEED.value !== undefined) {
+				HSpeed = data.AG_WINDOW_HSPEED.value;
+			}
 			let HFriction = (data.AG_WINDOW_HAS_CUSTOM_FRICTION.value === 1) ?
 				data.AG_WINDOW_CUSTOM_GROUND_FRICTION.value : char.ground_friction.value;
 			let HFrictionAir = (data.AG_WINDOW_HAS_CUSTOM_FRICTION.value === 1) ?
@@ -160,7 +163,10 @@
 				HFriction *= -1;
 				HFrictionAir *= -1;
 
-			let VSpeed = data.AG_WINDOW_VSPEED.value || 0;
+			let VSpeed = 0;
+			if (data.AG_WINDOW_VSPEED && data.AG_WINDOW_VSPEED.value !== undefined) {
+				VSpeed = data.AG_WINDOW_VSPEED.value;
+			}
 			let Gravity = (atkData.AG_USES_CUSTOM_GRAVITY.value === 1 && data.AG_WINDOW_CUSTOM_GRAVITY.value !== 0) ?
 				data.AG_WINDOW_CUSTOM_GRAVITY.value : char.gravity_speed.value;
 
@@ -341,7 +347,8 @@
 		fullUpdate();
 	}
 	const exportWIP = () => {
-		const fileStream = streamSaver.createWriteStream('WIP.roab');
+		const filename = ATK_INDEXES[+atkData.ATK_INDEX.value] || "UNKNOWN";
+		const fileStream = streamSaver.createWriteStream(`${filename}.roab`);
 		const data = (LZS.compressToUint8Array(JSON.stringify({
 			anim,
 			windows: strip(windows),
@@ -393,6 +400,19 @@
 		spritesheetSrc.file = file;
 		spritesheetSrc.buffer = await file.arrayBuffer();
 
+		const fname = file.name;
+		const match = fname.match(/(.+?)_strip(\d+)\./);
+
+		if (match) {
+			const sprite = match[1];
+			const nframes = +(match[2]);
+			atkData.AG_SPRITE.value = sprite;
+			atkData.AG_HURTBOX_SPRITE.value = `${sprite}_hurt`;
+			if (!isNaN(nframes)) {
+				spritesheetSrc.framecount = nframes;
+			}
+		}
+
 		let fileReader = new FileReader();
 		fileReader.onloadend = () => {
 			spritesheetSrc.dataUrl = fileReader.result;
@@ -432,13 +452,14 @@
 		width: 100vw;
 		display: grid;
 
-		grid-template-columns: 300px auto 300px;
+		grid-template-columns: 500px auto 300px;
 		grid-template-rows: 100px 30px 100px 30px auto;
 	}
 
 	#file,
 	#settings {
 		padding: 5px;
+		text-align: right;
 	}
 
 	#frames {
@@ -455,6 +476,7 @@
 		grid-row: 1 / 6;
 		grid-column: 1 / 2;
 		border-right: 1px solid #333;
+		overflow: auto;
 	}
 
 	#main {
@@ -487,10 +509,6 @@
 
 	input[type="file"] {
 		display: none;
-	}
-	
-	.filename {
-		margin: 0;
 	}
 
 	.option-container { 
@@ -593,7 +611,7 @@
 				skipBack();
 				updateStates.frames = true;
 				break;
-			case ',':
+			case '<':
 				if (anim.animFrame > 0) anim.animFrame --;
 				updateStates.frames = true;
 				break;
@@ -601,7 +619,7 @@
 				skipAhead();
 				updateStates.frames = true;
 				break;
-			case '.':
+			case '>':
 				if (anim.animFrame < anim.duration - 1) anim.animFrame ++;
 				updateStates.frames = true;
 				break;
@@ -648,6 +666,7 @@
 			<button on:click={() => outputBox = loadGMLCode}><i class="material-icons">attachment</i><span>load.gml</span></button>
 			<button on:click={() => outputBox = attackGMLCode}><i class="material-icons">attachment</i><span>[attackname].gml</span></button>
 			<textarea 
+				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
 				bind:value={outputBox} 
 				style="
 					height: 300px;
@@ -834,8 +853,8 @@
 						<select bind:value={anim.zoom}>
 							<option value="0.25">1/4x</option>
 							<option value="0.5">1/2x</option>
-							<option value="1" selected>1x</option>
-							<option value="2" >2x</option>
+							<option value="1" >1x</option>
+							<option value="2" selected>2x</option>
 							<option value="4" >4x</option>
 							<option value="8" >8x</option>
 						</select>
@@ -862,12 +881,6 @@
 							<input type="checkbox" bind:checked={anim.audio} />
 							<span class="checkmark"></span>
 						</label>
-					</div>
-					<div class="stats">
-						xvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xvel}<br/>
-						yvel: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].yvel}<br/>
-						xpos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].xpos}<br/>
-						ypos: {anim.charFramePositionData[anim.windowIndex][anim.windowFrame].ypos}<br/>
 					</div>
 				{:else}
 					{#each tools as tool}
