@@ -481,7 +481,7 @@
 		width: 100vw;
 		display: grid;
 
-		grid-template-columns: 500px auto 300px;
+		grid-template-columns: 300px auto 300px;
 		grid-template-rows: 100px 30px 100px 30px auto;
 	}
 
