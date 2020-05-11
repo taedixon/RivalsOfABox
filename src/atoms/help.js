@@ -5,14 +5,15 @@ export default `
 
 I'm just gonna put this front and center so that there isn't any doubt as to which parties various stuffs belongs to:
 
-- Credit for the sound effects goes to "[rafael langoni smith](http://rafaelsmith.com/home)" 
+- Credit for the sound effects goes to "[rafael langoni smith](http://rafaelsmith.com/home)"
   & "[flashygoodness](https://flashygoodness.bandcamp.com/album/rivals-of-aether-original-soundtrack)"
 - Mechanics/Physics based upon those found within [Rivals of Aether](https://www.rivalsofaether.com/)
 
 This webapp was created by me, [fudgepop01](https://twitter.com/fudgepop01), to assist development Steam Workshop characters for the game, Rivals of Aether.
 
-If you would like to support me in my future endeavors, consider [subscribing to me on patreon](https://www.patreon.com/fudgepop01) or [buying me a ko-fi](https://ko-fi.com/fudgepop01). Every cent will be used to further
-my ability to create and enhance useful tools, games, videos, and applications (such as this one)! Thank you for reading, and enjoy the app!
+This webapp was PWND and made way gooder by N0><1[)
+
+B3
 
 ---
 
@@ -63,7 +64,7 @@ The bounding box of the sprite is shown as a black border. The sprite itself can
 
 etc etc.
 
-click 
+click
 
 ### Exporting
 
@@ -102,14 +103,7 @@ there are keyboard shortcuts!
 
 Upcoming features:
 
-- an in-browser filesystem
-- a more flexible way of exporitng code
-- built-in presets
-- sound effect uploading
-
----
-
-# FAQs
+- none, go away
 
 ---
 `;
