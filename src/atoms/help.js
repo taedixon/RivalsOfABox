@@ -9,7 +9,7 @@ I'm just gonna put this front and center so that there isn't any doubt as to whi
   & "[flashygoodness](https://flashygoodness.bandcamp.com/album/rivals-of-aether-original-soundtrack)"
 - Mechanics/Physics based upon those found within [Rivals of Aether](https://www.rivalsofaether.com/)
 
-This webapp was created by me, [fudgepop01](https://twitter.com/fudgepop01), to assist development Steam Workshop characters for the game, Rivals of Aether.
+This webapp was created by [fudgepop01](https://twitter.com/fudgepop01), to assist development Steam Workshop characters for the game, Rivals of Aether.
 
 This webapp was PWND and made way gooder by N0><1[)
 

@@ -63,8 +63,7 @@
 		["add_box", "rectangle", "b"],
 		["rounded_corner", "round", "r"],
 		["add_circle", "circle", "o"],
-		["clear", "eraser", "Backspace"]
-
+		["clear", "eraser", "no shortcut"],
 	];
 	tools.selected = "pan";
 
