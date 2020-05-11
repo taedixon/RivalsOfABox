@@ -82,17 +82,6 @@
 		cameraY: 0,
 		movement: true,
 
-		grid: -1,
-		gridViewerRadius: 45,
-		zoomGrids: {
-			0.25: [50, 50],
-			0.50: [25, 25],
-			1.00: [20, 20],
-			2.00: [10, 10],
-			4.00: [5, 5],
-			8.00: [1, 1],
-		},
-
 		audio: true,
 
 		// calculated
@@ -115,8 +104,26 @@
 		sprYPos: 0,
 		mouseX: 0,
 		mouseY: 0,
-		relMouseX: 0,
-		relMouseY: 0,
+		get relMouseX() {
+			if (rend instanceof HTMLElement) {
+				return (calc.mouseX
+						- rend.getBoundingClientRect().left
+						- rend.clientWidth / 2
+						+ anim.cameraX/2)
+					/anim.zoom;
+			}
+			return 0;
+		},
+		get relMouseY() {
+			if (rend instanceof HTMLElement) {
+				return (calc.mouseY
+						- rend.getBoundingClientRect().top
+						- rend.clientHeight / 2
+						+ anim.cameraY/2)
+					/anim.zoom;
+			}
+			return 0;
+		},
 		aspectRatio: 1
 	}
 
@@ -311,10 +318,6 @@
 			calc.sprXPos += anim.xpos;
 			calc.sprYPos -= anim.ypos;
 		}
-		if (rend instanceof HTMLElement) {
-			calc.relMouseX = (calc.mouseX - rend.getBoundingClientRect().left - rend.clientWidth / 2 + anim.cameraX/2)/anim.zoom;
-			calc.relMouseY = (calc.mouseY - rend.getBoundingClientRect().top - rend.clientHeight / 2 + anim.cameraY/2)/anim.zoom;
-		}
 	}
 
 	const fullUpdate = () => {
@@ -443,25 +446,6 @@
 			img.src = fileReader.result;
 		};
 		fileReader.readAsDataURL(file);
-	}
-
-	const drawGridOverlay = (pixelsX, pixelsY, radius, xpos, ypos) => {
-		const yOffset = ypos - radius * 1.5;
-		const xOffset = xpos - radius * 1.5;
-		let out = "";
-		for (let y = yOffset - (yOffset) % pixelsY; y < ypos + radius; y += pixelsY) {
-			out += `
-				M ${xpos - radius} ${y}
-				h ${radius * 2}
-			`;
-		}
-		for (let x = (xOffset - (xOffset) % pixelsX); x < xpos + radius; x += pixelsX) {
-			out += `
-				M ${x} ${ypos - radius}
-				v ${radius * 2}
-			`;
-		}
-		return out;
 	}
 
 	const clearHitboxPendingDelete = () => {
@@ -793,11 +777,11 @@
 						}
 						break;
 				}
-			} else {
-				calc.mouseX = evt.clientX; calc.mouseY = evt.clientY
 			}
 		}}
 		on:mousedown={(evt) => {
+			calc.mouseX = evt.clientX;
+			calc.mouseY = evt.clientY;
 			tools.active = true;
 			renderer.dragging = true;
 			renderer.target = evt.target.getAttributeNS(null, 'class');
@@ -899,12 +883,6 @@
 						</select>
 					</div>
 					<div class="option-param" style="justify-self: right; display: block;">
-						grid-x: <input type="number" bind:value={anim.zoomGrids[anim.zoom][0]} min="1" max="100"/>
-					</div>
-					<div class="option-param" style="justify-self: right; display: block;">
-						grid-y: <input type="number" bind:value={anim.zoomGrids[anim.zoom][1]} min="1" max="100"/>
-					</div>
-					<div class="option-param" style="justify-self: right; display: block;">
 						<label>
 							lock offset:
 							<input type="checkbox" bind:checked={char.position_locked.value} />
@@ -945,15 +923,9 @@
 {rend.clientHeight / anim.zoom}"
 			>
 				<defs>
-					<filter id="blur" x="0" y="0">
-						<feGaussianBlur in="SourceGraphic" stdDeviation="5" />
-					</filter>
 					<clipPath id="spriteClip" clipPathUnits="objectBoundingBox">
 						<rect x="{(anim.spriteFrame % spritesheetSrc.framecount) / spritesheetSrc.framecount}" y="0" width="{1 / spritesheetSrc.framecount}" height="1" />
 					</clipPath>
-					<mask id="mouseMask">
-						<circle cx="{calc.relMouseX}" cy="{calc.relMouseY}" r="{anim.gridViewerRadius / anim.zoom}" fill="white" filter="url(#blur)"/>
-					</mask>
 				</defs>
 				<path d="
 					M {-4 * rend.clientWidth / 2} 0
@@ -970,12 +942,6 @@
 					stroke-width="{2 / anim.zoom}"
 					stroke="#000F"
 					shape-rendering="crispEdges"
-				/>
-				<path d={(anim.grid) ? drawGridOverlay(anim.zoomGrids[anim.zoom][0], anim.zoomGrids[anim.zoom][1], anim.gridViewerRadius / anim.zoom, calc.relMouseX, calc.relMouseY) : ''}
-					stroke-width="{1 / anim.zoom}"
-					stroke="#0008"
-					shape-rendering="crispEdges"
-					mask="url(#mouseMask)"
 				/>
 				<rect
 					x="{calc.sprXPos + calc.frameWidth * (anim.spriteFrame)}"
