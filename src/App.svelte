@@ -453,6 +453,15 @@
 		}
 		return out;
 	}
+
+	const clearHitboxPendingDelete = () => {
+		let wasPending = false;
+		for (const hb of hitboxes) {
+			wasPending = wasPending || hb.meta.confirmDelete;
+			hb.meta.confirmDelete = false;
+		}
+		return wasPending;
+	}
 </script>
 
 <style>
@@ -785,7 +794,15 @@
 			if (renderer.target === 'hitbox' || renderer.target === 'angle-indicator') {
 				if (tools.selected === 'eraser') {
 					editingMode = 'window';
-					hitboxes.splice(evt.target.getAttributeNS(null, 'data-index'), 1);
+					const index = evt.target.getAttributeNS(null, 'data-index');
+					if (hitboxes[index]) {
+						if (hitboxes[index].meta.confirmDelete) {
+							hitboxes.splice(evt.target.getAttributeNS(null, 'data-index'), 1);
+						} else {
+							clearHitboxPendingDelete();
+							hitboxes[index].meta.confirmDelete = true;
+						}
+					}
 					updateStates.hitboxes = true;
 				} else {
 					editingMode = 'hitbox';
@@ -800,6 +817,9 @@
 				if (renderer.target === "resizer") {
 					hitboxes.selected = parseInt(evt.target.getAttributeNS(null, 'data-index'));
 					updateStates.hitboxes = true;
+				}
+				if (tools.selected === "eraser") {
+						updateStates.hitboxes = clearHitboxPendingDelete();
 				}
 				renderer.mouseOrigin = [evt.pageX, evt.pageY];
 			}
@@ -995,7 +1015,7 @@
 								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value}"
 								rx="{hitbox.data.HG_WIDTH.value / 2}"
 								ry="{hitbox.data.HG_HEIGHT.value / 2}"
-								fill="{hitbox.meta.color}"
+								fill="{hitbox.meta.confirmDelete ? "black" : hitbox.meta.color}"
 								stroke="{(hitboxes.selected === i) ? 'black' : hitbox.meta.stroke || 'black'}"
 								stroke-width="{(hitboxes.selected === i) ? 4/anim.zoom : hitbox.meta.strokeWidth || 0}"
 							/>
