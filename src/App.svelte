@@ -479,7 +479,7 @@
 		background-color: #000;
 		grid-row: 2 / 3;
 		grid-column: 1 / 2;
-		overflow-x: scroll;
+		overflow-x: auto;
 	}
 
 	#main {
@@ -953,6 +953,8 @@
 				/>
 				{#if char.position_locked.value || tools.selected !== "pan"}
 					<image
+						on:dragstart={(e) => e.preventDefault()}
+						draggable="false"
 						x="{calc.sprXPos}"
 						y="{calc.sprYPos}"
 						width="{spritesheetSrc.dimensions.width}"
@@ -962,6 +964,8 @@
 					/>
 				{:else}
 					<image
+						draggable="false"
+						on:dragstart={(e) => e.preventDefault()}
 						on:mousedown|stopPropagation={(evt) => evt.target.dragging = true}
 						on:mouseout|stopPropagation={(evt) => evt.target.dragging = false}
 						on:mouseup|stopPropagation={(evt) => evt.target.dragging = false}
