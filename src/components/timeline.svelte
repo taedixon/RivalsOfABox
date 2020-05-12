@@ -27,7 +27,7 @@ export let updateStates;
 			fpsMonitor++;
 			if (fpsMonitor >= (1 / anim.playSpeed)) {
 				fpsMonitor = 0;
-				if (anim.animFrame + 1 === anim.duration) { 
+				if (anim.animFrame + 1 === anim.duration) {
 					anim.animFrame = 0;
 					if (!anim.loop) { anim.playing = false; }
 				}
@@ -48,20 +48,31 @@ export let updateStates;
 		updateStates.length = true;
 		updateStates.frames = true;
 	}
-    
+
 </script>
 
 <style>
     #timeline-controls {
-		grid-row: 2 / 3;
-		grid-column: 2 / 3;
+		grid-row: 3 / 4;
+		grid-column: 1 / 2;
 		position: relative;
 		padding: 3px;
-		display: grid;
+		display: flex;
+		justify-content: space-between;
+		align-content: center;
+	}
+
+	@media screen and (min-width: 1250px) {
+		#timeline-controls {
+			justify-content: center;
+		}
+		#timeline-controls>* {
+			margin-right: 2em;
+		}
 	}
 
 	#current-frame-label {
-		display: inline-block; 
+		display: inline-block;
 		text-align: right;
 		border-radius: 2px;
 		border: 1px solid #DDD;
@@ -75,8 +86,8 @@ export let updateStates;
 
 	#timeline {
 		background-color: #FFF;
-		grid-row: 3 / 4;
-		grid-column: 2 / 3;
+		grid-row: 4 / 5;
+		grid-column: 1 / 2;
 		border-top: 1px solid black;
 		position: relative;
 		display: flex;
@@ -86,14 +97,14 @@ export let updateStates;
 	#window-metadata {
 		background-color: #555;
 		border-top: 1px solid #333;
-		grid-row: 4 / 5;
-		grid-column: 2 / 3;
+		grid-row: 5 / 6;
+		grid-column: 1 / 2;
 		position: relative;
 		padding: 3px;
 		display: grid;
 		color: white;
     }
-    
+
     #current-frame {
 		opacity: 0;
 		position: fixed;
@@ -101,16 +112,7 @@ export let updateStates;
 		right: 0;
 		pointer-events: none;
     }
-    
-    .option-group {
-		position: absolute;
-		top: 2px;
-	}
-	.option-group i {
-		font-size: inherit;
-		line-height: 20px;
-    }
-    
+
     button[disabled] {
 		background-color: transparent;
 		border: 1px dashed #DDD;
@@ -119,18 +121,18 @@ export let updateStates;
 </style>
 
 <div id="timeline-controls">
-		<div class="option-group" style="justify-self: left">
-			<input 
+		<div class="option-group">
+			<input
 				type="number"
 				id="current-frame"
 				bind:value={anim.animFrame}
 				on:focus={(evt) => {isCurrentFrameFocused = true; evt.target.select()}}
 				on:blur={() => isCurrentFrameFocused = false}
 				min="0" max="{anim.duration - 1}">
-			<p style="width: 150px; margin: 0; display: inline-block">
-				frame: <label 
-					bind:this={currentFrameLabel} 
-					style="width: {anim.duration.toString().length * 10 + 10}px" 
+			<p style="margin: 0; display: inline-block">
+				F: <label
+					bind:this={currentFrameLabel}
+					style="width: {anim.duration.toString().length * 10 + 10}px"
 					id="current-frame-label"
 					class={(isCurrentFrameFocused) ? 'active' : ''}
 					for="current-frame"
@@ -138,20 +140,21 @@ export let updateStates;
 					{anim.animFrame + 1}
 				</label> / {anim.duration};
 			</p>
-			
-			<div style="width: 400px; margin: 0; display: inline-block">
-				window: {anim.windowIndex + 1} / {windows.length}
-				<button on:click={handleWindowAddition}><i class="material-icons">add</i></button>
-				<button on:click={handleWindowDeletion} disabled="{windows.length <= 1}"><i class="material-icons">delete</i></button>
-			</div>
 		</div>
-		<div class="option-group" style="justify-self: center;">
+		<div class="option-group">
+			W: {anim.windowIndex + 1} / {windows.length}
+		</div>
+		<div class="option-group">
+			<button on:click={handleWindowAddition}><i class="material-icons">add</i></button>
+			<button on:click={handleWindowDeletion} disabled="{windows.length <= 1}"><i class="material-icons">delete</i></button>
+		</div>
+		<div class="option-group">
 			<button on:click={ ()=>{anim.loop = !anim.loop} }><i class="material-icons">loop</i></button>
 			<button on:click={skipBack} disabled="{anim.animFrame === 0}"><i class="material-icons">skip_previous</i></button>
 			<button on:click={startPlaying}><i class="material-icons">{anim.playing ? 'pause' : 'play_arrow'}</i></button>
 			<button on:click={skipAhead} disabled="{anim.animFrame === anim.duration - 1}"><i class="material-icons">skip_next</i></button>
 		</div>
-		<div class="option-group" style="justify-self: right;">
+		<div class="option-group">
 			playback speed:
 			<select bind:value={anim.playSpeed}>
 				<option value="0.25">1/4x</option>
@@ -177,7 +180,7 @@ export let updateStates;
 				<p style="justify-self: center; align-self: center; margin: 0; position: absolute;">{win.meta.name}</p>
 			</div>
 		{/each}
-		<div id="playhead" 
+		<div id="playhead"
 			style="
 				height: 100%;
 				width: 2px;
@@ -192,7 +195,7 @@ export let updateStates;
 		<div class="option-group">
 			<label style="display: inline-block">
 				name:
-				{#if editingMode === 'window'} 
+				{#if editingMode === 'window'}
 					<input type="text" bind:value={windows[anim.windowIndex].meta.name}>
 				{:else if editingMode === 'hitbox'}
 					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.name}>
@@ -200,11 +203,11 @@ export let updateStates;
 			</label>
 			<label style="display: inline-block">
 				color:
-				{#if editingMode === 'window'} 
+				{#if editingMode === 'window'}
 					<input type="text" bind:value={windows[anim.windowIndex].meta.color}>
 				{:else if editingMode === 'hitbox'}
 					<input type="text" bind:value={hitboxes[hitboxes.selected].meta.color}>
-				{/if}			
+				{/if}
 			</label>
 		</div>
 	</div>

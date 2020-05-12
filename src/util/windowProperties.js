@@ -7,7 +7,7 @@ export default {
         description: stripIndent`
         0 = Normal
         7 = Goes into pratfall
-        8 = Goes to the next window if it’s on the ground, otherwise loops
+        8 = Goes to the next window immediately if it’s on the ground
         9 = Looping window
         `,
         type: [0, 7, 8, 9]

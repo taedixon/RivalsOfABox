@@ -37,7 +37,7 @@
 	let windows = [
 		{
 			meta: {
-				name: 'derp',
+				name: 'New Window',
 			},
 			data: JSON.parse(JSON.stringify({...winProps}))
 		},
@@ -379,7 +379,6 @@
 	let initGMLCode = 'nothing exported yet';
 	let loadGMLCode = 'nothing exported yet';
 	let attackGMLCode = 'nothing exported yet';
-	let outputBox = 'stuff will appear here when the above buttons are clicked...';
 
 	const gmlExport = () => {
 		const strings = exporter(char, atkData, windows, JSON.parse(JSON.stringify(hitboxes)));
@@ -388,10 +387,16 @@
 		attackGMLCode = strings.out_ATK;
 	};
 
+	const showGml = () => {
+		gmlExport();
+		editingMode = "gml";
+	}
+
 	const skipBack = () => {
 		if (anim.windowIndex !== 0) anim.animFrame = anim.windowPositions[anim.windowIndex - 1];
 		else anim.animFrame = 0;
 	}
+
 	const skipAhead = () => {
 		if (anim.windowIndex !== windows.length - 1) anim.animFrame = anim.windowPositions[anim.windowIndex + 1];
 		else anim.animFrame = anim.windowPositions[anim.windowIndex] + windows[anim.windowIndex].data.AG_WINDOW_LENGTH.value - 1;
@@ -443,8 +448,14 @@
 		width: 100vw;
 		display: grid;
 
-		grid-template-columns: 300px auto 300px;
-		grid-template-rows: 100px 30px 100px 30px auto;
+		grid-template-columns: auto 300px;
+		grid-template-rows: 120px 100px 30px 100px 30px auto;
+	}
+
+	@media screen and (min-width: 1250px) {
+		#app {
+			grid-template-rows: 80px 100px 30px 100px 30px auto;
+		}
 	}
 
 	#file,
@@ -453,27 +464,28 @@
 		text-align: right;
 	}
 
-	#frames {
-		background-color: #000;
-		grid-row: 1 / 2;
-		grid-column: 2 / 3;
-		overflow-x: scroll;
-	}
-
 	#file {
 		background-color: #555;
 		border: 5px double #222;
 		color: white;
-		grid-row: 1 / 6;
+		grid-row: 1 / 2;
 		grid-column: 1 / 2;
 		border-right: 1px solid #333;
 		overflow: auto;
+		display: flex;
+	}
+
+	#frames {
+		background-color: #000;
+		grid-row: 2 / 3;
+		grid-column: 1 / 2;
+		overflow-x: scroll;
 	}
 
 	#main {
 		background-color: #888;
-		grid-row: 5 / 6;
-		grid-column: 2 / 3;
+		grid-row: 6 / 7;
+		grid-column: 1 / 2;
 		position: relative;
 		border-top: 1px solid #555;
 
@@ -485,8 +497,8 @@
 		background-color: #555;
 		border: 5px double #222;
 		color: white;
-		grid-row: 1 / 6;
-		grid-column: 3 / 4;
+		grid-row: 1 / 7;
+		grid-column: 2 / 3;
 		border-left: 1px solid #333;
 		user-select: none;
 		display: flex;
@@ -511,7 +523,8 @@
 	.inputGroup {
 		width: 100%;
 		height: auto;
-		padding: 10px;
+		padding: 0.5em;
+		text-align: left;
 	}
 
 	input[type="file"] {
@@ -526,7 +539,7 @@
 		display: grid;
 		grid-template-rows: 25px auto;
 		grid-template-columns: auto auto;
-		width: 150px;
+		width: 155px;
 	}
 	.tab { pointer-events: auto; border: none; border-radius: 0; }
 	.tab[active="true"] { background-color: transparent; }
@@ -559,11 +572,9 @@
 		height: 30px;
 	}
 	.inputGroup button i {
-		float: left;
 		vertical-align: middle;
 	}
 	.inputGroup button span {
-		float: right;
 		vertical-align: middle;
 	}
 
@@ -608,6 +619,24 @@
 		opacity: 1;
 	}
 
+	.gmlPreview {
+		height: 300px;
+		width: 100%;
+		color: #DDD;
+		font-size: 10px;
+		font-family: monospace;
+		background-color: black;
+	}
+
+	.gmlPreview.small {
+		height: 60px;
+	}
+
+	h3 {
+		margin: 0.5em 0;
+		text-align: left;
+	}
+
 </style>
 
 <svelte:window
@@ -649,43 +678,25 @@
 	<div id="file">
 		<div class="inputGroup">
 			<button on:click={() => modalVisible = true}>Help / Credits</button>
-			<label for="spritesheet-upload">
-				<button style="pointer-events: none">upload spritesheet</button>
-			</label>
-			<input id="spritesheet-upload" type="file" on:change={async (evt) => {spritesheetSrc.file = evt.target.files[0]; processImage(evt.target.files[0])}}>
-		</div>
-		<div class="inputGroup">
-			<label for="framecount">number of frames in spritesheet:</label>
-			<input id="framecount" type="number" min="1" max="99" bind:value={spritesheetSrc.framecount}>
-		</div>
-		<div class="inputGroup">
-			<button on:click={gmlExport}><i class="material-icons">import_export</i><span>export to GML</span></button>
-		</div>
-		<div class="inputGroup">
-			<button on:click={() => outputBox = initGMLCode}><i class="material-icons">attachment</i><span>init.gml</span></button>
-			<button on:click={() => outputBox = loadGMLCode}><i class="material-icons">attachment</i><span>load.gml</span></button>
-			<button on:click={() => outputBox = attackGMLCode}><i class="material-icons">attachment</i><span>[attackname].gml</span></button>
-			<textarea
-				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-				bind:value={outputBox}
-				style="
-					height: 300px;
-					width: 100%;
-					color: #DDD;
-					font-size: 10px;
-					font-family: monospace;
-					background-color: black;
-				"
-			/>
 			<button on:click={exportWIP}>
 				<i class="material-icons">attachment</i><span>export WIP</span>
 			</button>
-			<label for="import-wip" >
+			<label for="import-wip" style="display: inline-block">
 				<button style="pointer-events: none">
 					<i class="material-icons">attachment</i><span>import WIP</span>
 				</button>
 			</label>
 			<input id="import-wip" type="file" accept=".roab,.json" on:change={loadWIP} />
+		</div>
+		<div class="inputGroup">
+			<label for="spritesheet-upload" style="display: inline-block">
+				<button style="pointer-events: none">upload spritesheet</button>
+			</label>
+			<input id="spritesheet-upload" type="file" on:change={async (evt) => {spritesheetSrc.file = evt.target.files[0]; processImage(evt.target.files[0])}}>
+			<div style="display: inline-block">
+				<label for="framecount">number of frames in spritesheet:</label>
+				<input id="framecount" type="number" min="1" max="99" bind:value={spritesheetSrc.framecount}>
+			</div>
 		</div>
 	</div>
 	<div id="frames">
@@ -1083,6 +1094,7 @@
 		<div class="inputGroup">
 			<button on:click={() => editingMode = 'atkData'}><i class="material-icons">edit</i><span>edit attack data</span></button>
 			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
+			<button on:click={showGml}><i class="material-icons">import_export</i><span>View GML</span></button>
 		</div>
 		<hr>
 		<div class="controls">
@@ -1109,6 +1121,25 @@
 					isDisabled={isDisabled}
 					bind:props={char}
 					on:dataChanged={() => updateStates.movement = true}
+				/>
+			{:else if editingMode === 'gml'}
+				<h3>init.gml</h3>
+				<textarea
+				class="gmlPreview small"
+				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+				bind:value={initGMLCode}
+				/>
+				<h3>load.gml</h3>
+				<textarea
+				class="gmlPreview small"
+				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+				bind:value={loadGMLCode}
+				/>
+				<h3>[attackname].gml</h3>
+				<textarea
+				class="gmlPreview"
+				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+				bind:value={attackGMLCode}
 				/>
 			{/if}
 		</div>
