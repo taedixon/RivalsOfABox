@@ -1,6 +1,5 @@
 <script>
 	import LZS from 'lz-string';
-	import store from 'store2';
 
 	import ParamsBuilder from './components/paramsBuilder.svelte';
 	import Timeline from './components/timeline.svelte';
@@ -15,7 +14,7 @@
 	import atkDataProps from './util/atkDataProperties.js';
 	import charProps from './util/characterProperties.js';
 	import { velocityAtFrame, velocityAtFrameGrav } from './util/XAtFrames.js';
-	import { strip, populate, exportData, importData } from './util/importExportData.js';
+	import { strip, populate } from './util/importExportData.js';
 	import exporter from './util/exportToGML.js';
 	import { ATK_INDEXES } from "./util/exportToGML.js";
 
@@ -327,26 +326,6 @@
 		updateStates.frames = true;
 	}
 
-	const save = () => {
-		store({
-			anim,
-			windows: strip(windows),
-			hitboxes: strip(hitboxes),
-			spritesheetSrc,
-			char: strip(char),
-			atkData,
-		});
-	}
-	const load = () => {
-		let data = store();
-		anim = data.anim;
-		windows = populate(data.windows, winProps);
-		spritesheetSrc = data.spritesheetSrc;
-		char = populate(data.char, charProps);
-		hitboxes = populate(data.hitboxes, hitboxProps);
-		atkData = data.atkData;
-		fullUpdate();
-	}
 	const exportWIP = () => {
 		gmlExport();
 		const filename = ATK_INDEXES[+atkData.ATK_INDEX.value] || "UNKNOWN";
@@ -448,7 +427,7 @@
 		fileReader.readAsDataURL(file);
 	}
 
-	const clearHitboxPendingDelete = () => {
+	const clearHitboxesPendingDelete = () => {
 		let wasPending = false;
 		for (const hb of hitboxes) {
 			wasPending = wasPending || hb.meta.confirmDelete;
@@ -669,8 +648,6 @@
 			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
 		</div>
 		<div class="inputGroup">
-			<button on:click={save}><i class="material-icons">save_alt</i><span>save to browser</span></button>
-			<button on:click={load}><i class="material-icons">unarchive</i><span>load from browser</span></button>
 			<button on:click={gmlExport}><i class="material-icons">import_export</i><span>export to GML</span></button>
 		</div>
 		<div class="inputGroup">
@@ -793,7 +770,7 @@
 						if (hitboxes[index].meta.confirmDelete) {
 							hitboxes.splice(evt.target.getAttributeNS(null, 'data-index'), 1);
 						} else {
-							clearHitboxPendingDelete();
+							clearHitboxesPendingDelete();
 							hitboxes[index].meta.confirmDelete = true;
 						}
 					}
@@ -813,7 +790,7 @@
 					updateStates.hitboxes = true;
 				}
 				if (tools.selected === "eraser") {
-						updateStates.hitboxes = clearHitboxPendingDelete();
+						updateStates.hitboxes = clearHitboxesPendingDelete();
 				}
 				renderer.mouseOrigin = [evt.pageX, evt.pageY];
 			}

@@ -3,7 +3,9 @@ import * as fs from "fs";
 import * as os from "os";
 
 const downloadsFolder = `${os.homedir()}/Downloads`;
-const workshopFolder = `./test`
+const defaultFolder = `${os.homedir()}/AppData/Local/RivalsofAether`
+    + `/workshop/izzy/scripts/attacks`;
+const workshopFolder = process.argv[2] ?? defaultFolder;
 
 const attackFiles = [
     "AT_JAB",
