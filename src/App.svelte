@@ -677,16 +677,16 @@
 <div id="app">
 	<div id="file">
 		<div class="inputGroup">
-			<button on:click={() => modalVisible = true}>Help / Credits</button>
 			<button on:click={exportWIP}>
-				<i class="material-icons">attachment</i><span>export WIP</span>
+				<i class="material-icons">attachment</i><span>export JSON</span>
 			</button>
 			<label for="import-wip" style="display: inline-block">
 				<button style="pointer-events: none">
-					<i class="material-icons">attachment</i><span>import WIP</span>
+					<i class="material-icons">attachment</i><span>import JSON</span>
 				</button>
 			</label>
 			<input id="import-wip" type="file" accept=".roab,.json" on:change={loadWIP} />
+			<button on:click={() => modalVisible = true}>Help / Credits</button>
 		</div>
 		<div class="inputGroup">
 			<label for="spritesheet-upload" style="display: inline-block">
