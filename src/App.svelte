@@ -488,8 +488,24 @@
 		grid-row: 1 / 6;
 		grid-column: 3 / 4;
 		border-left: 1px solid #333;
-		overflow-y: scroll;
 		user-select: none;
+		display: flex;
+		overflow: hidden;
+		flex-direction: column;
+	}
+
+	#settings hr {
+		margin-left: 0;
+		margin-right: 0;
+	}
+
+	#settings>.inputGroup {
+		flex: 0 0 auto;
+	}
+
+	#settings>.controls {
+		overflow-y: auto;
+		padding: 0 1em;
 	}
 
 	.inputGroup {
@@ -541,7 +557,6 @@
 
 	.inputGroup button {
 		height: 30px;
-		width: 70%;
 	}
 	.inputGroup button i {
 		float: left;
@@ -642,10 +657,6 @@
 		<div class="inputGroup">
 			<label for="framecount">number of frames in spritesheet:</label>
 			<input id="framecount" type="number" min="1" max="99" bind:value={spritesheetSrc.framecount}>
-		</div>
-		<div class="inputGroup">
-			<button on:click={() => editingMode = 'atkData'}><i class="material-icons">edit</i><span>edit attack data</span></button>
-			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
 		</div>
 		<div class="inputGroup">
 			<button on:click={gmlExport}><i class="material-icons">import_export</i><span>export to GML</span></button>
@@ -1069,30 +1080,37 @@
 		</div>
 	</div>
 	<div id="settings">
-		{#if editingMode === 'window'}
-			<ParamsBuilder
-				isDisabled={isDisabled}
-				bind:props={windows[anim.windowIndex].data}
-				on:dataChanged={() => {updateStates.length = true; updateStates.movement = true; updateStates.frames = true;}}
-			/>
-		{:else if editingMode === 'hitbox'}
-			<ParamsBuilder
-				isDisabled={isDisabled}
-				bind:props={hitboxes[hitboxes.selected].data}
-				on:dataChanged={() => updateStates.hitboxes = true}
-			/>
-		{:else if editingMode === 'atkData'}
-			<ParamsBuilder
-				isDisabled={isDisabled}
-				bind:props={atkData}
-				on:dataChanged={() => updateStates.movement = true}
-			/>
-		{:else if editingMode === 'chrData'}
-			<ParamsBuilder
-				isDisabled={isDisabled}
-				bind:props={char}
-				on:dataChanged={() => updateStates.movement = true}
-			/>
-		{/if}
+		<div class="inputGroup">
+			<button on:click={() => editingMode = 'atkData'}><i class="material-icons">edit</i><span>edit attack data</span></button>
+			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
+		</div>
+		<hr>
+		<div class="controls">
+			{#if editingMode === 'window'}
+				<ParamsBuilder
+					isDisabled={isDisabled}
+					bind:props={windows[anim.windowIndex].data}
+					on:dataChanged={() => {updateStates.length = true; updateStates.movement = true; updateStates.frames = true;}}
+				/>
+			{:else if editingMode === 'hitbox'}
+				<ParamsBuilder
+					isDisabled={isDisabled}
+					bind:props={hitboxes[hitboxes.selected].data}
+					on:dataChanged={() => updateStates.hitboxes = true}
+				/>
+			{:else if editingMode === 'atkData'}
+				<ParamsBuilder
+					isDisabled={isDisabled}
+					bind:props={atkData}
+					on:dataChanged={() => updateStates.movement = true}
+				/>
+			{:else if editingMode === 'chrData'}
+				<ParamsBuilder
+					isDisabled={isDisabled}
+					bind:props={char}
+					on:dataChanged={() => updateStates.movement = true}
+				/>
+			{/if}
+		</div>
 	</div>
 </div>
