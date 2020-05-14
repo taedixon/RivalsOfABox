@@ -3,3 +3,4 @@ node_modules
 public/bundle.*
 src/stores
 public/sounds
+package-lock.json
