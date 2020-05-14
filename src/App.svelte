@@ -1,6 +1,7 @@
 <script>
 	import LZS from 'lz-string';
 
+	import HitboxSummary from "./components/hitboxSummary.svelte";
 	import ParamsBuilder from './components/paramsBuilder.svelte';
 	import Timeline from './components/timeline.svelte';
 	import LocalStorageFS from './components/LocalStorageFS.svelte';
@@ -439,6 +440,22 @@
 			hb.meta.confirmDelete = false;
 		}
 		return wasPending;
+	}
+
+	const onHitboxSummarySelected = (hitbox) => {
+		const hbIndex = hitboxes.findIndex((h) => h === hitbox);
+		if (hbIndex === -1) {
+			throw new Error("Couldn't find hitbox");
+		}
+		hitboxes.selected = hbIndex;
+		const windex = hitbox.data.HG_WINDOW.value
+		const hbFrame = hitbox.data.HG_WINDOW_CREATION_FRAME.value;
+		const window = windows[windex];
+		if (window == null || hbFrame == null) {
+			throw new Error("Couldn't find window / frame for hitbox");
+		}
+		anim.animFrame = anim.windowPositions[windex] + hbFrame;
+		updateStates.frames = true;
 	}
 </script>
 
@@ -1098,6 +1115,7 @@
 		<div class="inputGroup">
 			<button on:click={() => editingMode = 'atkData'}><i class="material-icons">edit</i><span>edit attack data</span></button>
 			<button on:click={() => editingMode = 'chrData'}><i class="material-icons">person</i><span>edit character data</span></button>
+			<button on:click={() => editingMode = "hitbox_summary"}><i class="material-icons">radio_button_unchecked</i><span>View Hitboxes</span></button>
 			<button on:click={showGml}><i class="material-icons">import_export</i><span>View GML</span></button>
 		</div>
 		<hr>
@@ -1145,6 +1163,15 @@
 				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
 				bind:value={attackGMLCode}
 				/>
+			{:else if editingMode === 'hitbox_summary'}
+				<HitboxSummary
+					bind:hitboxes={hitboxes}
+					on:selected={(e) => {
+						if (e.detail.hitbox) {
+							onHitboxSummarySelected(e.detail.hitbox);
+						}
+					}}>
+				</HitboxSummary>
 			{/if}
 		</div>
 	</div>
