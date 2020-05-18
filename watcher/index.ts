@@ -7,6 +7,8 @@ const defaultFolder = `${os.homedir()}/AppData/Local/RivalsofAether`
     + `/workshop/izzy/scripts/attacks`;
 const workshopFolder = process.argv[2] ?? defaultFolder;
 
+const DEBOUNCE_TIMER=300;
+
 const attackFiles = [
     "AT_JAB",
     "AT_FTILT",
@@ -55,7 +57,7 @@ if (!fs.existsSync(workshopFolder)) {
 	throw new Error(`No folder exists at path ${workshopFolder}`);
 }
 
-const debounceMap = new Map<string, number>();
+const debounceMap = new Map<string, NodeJS.Timeout>();
 
 const debounce = (filename: string) => {
     const existingTimer = debounceMap.get(filename);
@@ -64,8 +66,8 @@ const debounce = (filename: string) => {
     }
     const newTimer = setTimeout(() => {
         debounceMap.delete(filename);
-        onChange(filename), 300
-    });
+        onChange(filename)
+    }, DEBOUNCE_TIMER);
     debounceMap.set(filename, newTimer);
 }
 
@@ -77,10 +79,10 @@ const onChange = async (filename: string) => {
 		console.log(`Detected change to ${attack}`);
 		const src = `${downloadsFolder}/${filename}`;
 		const jsonDst = `${workshopFolder}/${attack}.json`;
-		const srcContents = fs.readFileSync(src);
+		const srcContents = fs.readFileSync(src).toString("UTF-8");
 		try {
 			// read the gml
-			const srcObj = JSON.parse(srcContents.toString("UTF-8"));
+			const srcObj = JSON.parse(srcContents);
 			const attackGml = srcObj.gml?.attack as string | undefined;
 
 			if (attackGml) {
@@ -100,7 +102,8 @@ const onChange = async (filename: string) => {
 			console.log(`Removing ${src}`);
 			fs.unlinkSync(src);
 		} catch (err) {
-			console.error(err);
+            console.error(err);
+            console.log(srcContents);
         }
         console.log("done");
         console.log("================================================================")

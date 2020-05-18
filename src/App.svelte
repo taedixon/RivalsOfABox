@@ -312,7 +312,7 @@
 	// common computations
 	$: {
 		calc.frameWidth = spritesheetSrc.dimensions.width / spritesheetSrc.framecount;
-		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset_x.value) - calc.frameWidth;
+		calc.sprXPos = anim.xpos - anim.spriteFrame * calc.frameWidth + Math.floor(char.sprite_offset_x.value);
 		calc.sprYPos = anim.ypos + Math.floor(char.sprite_offset_y.value);
 		if (!anim.movement) {
 			calc.sprXPos += anim.xpos;
@@ -878,6 +878,7 @@
 					hitboxes.selected = hitboxes.length - 1;
 					updateStates.hitboxes = true;
 					editingMode = 'hitbox';
+					tools.selected = "pan";
 					break;
 			}
 		}}
@@ -1007,7 +1008,7 @@
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame + 1)}"
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame)}"
 								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value}"
 								rx="{hitbox.data.HG_WIDTH.value / 2}"
 								ry="{hitbox.data.HG_HEIGHT.value / 2}"
@@ -1020,7 +1021,7 @@
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value  - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame+1)}"
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value  - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}"
 								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value - hitbox.data.HG_HEIGHT.value / 2}"
 								width="{hitbox.data.HG_WIDTH.value}"
 								height="{hitbox.data.HG_HEIGHT.value}"
@@ -1033,7 +1034,7 @@
 								class="hitbox"
 								data-index={i}
 								bind:this={hitbox.meta.el}
-								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value  - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame+1)}"
+								x="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value  - hitbox.data.HG_WIDTH.value / 2 + calc.frameWidth * (anim.spriteFrame)}"
 								y="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value - hitbox.data.HG_HEIGHT.value / 2}"
 								rx="{hitbox.data.HG_WIDTH.value * 0.25}"
 								ry="{hitbox.data.HG_HEIGHT.value * 0.25}"
@@ -1047,14 +1048,14 @@
 						<line
 							class="angle-indicator"
 							data-index={i}
-							x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame+1)}"
+							x1="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame)}"
 							x2="{
 								calc.sprXPos
 								+ hitbox.data.HG_HITBOX_X.value
 								- char.sprite_offset_x.value
 								+ Math.cos(hitbox.data.HG_ANGLE.value * -Math.PI/180)
 								* hitbox.data.HG_WIDTH.value / 2
-								+ calc.frameWidth * (anim.spriteFrame+1)}"
+								+ calc.frameWidth * (anim.spriteFrame)}"
 							y1="{calc.sprYPos - char.sprite_offset_y.value + hitbox.data.HG_HITBOX_Y.value}"
 							y2="{
 								calc.sprYPos
@@ -1068,7 +1069,7 @@
 							<circle
 								class="resizer"
 								data-index={i}
-								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame+1)}"
+								cx="{calc.sprXPos + hitbox.data.HG_HITBOX_X.value - char.sprite_offset_x.value + calc.frameWidth * (anim.spriteFrame)}"
 								cy="{calc.sprYPos + hitbox.data.HG_HITBOX_Y.value - char.sprite_offset_y.value}"
 								r="{4/anim.zoom}"
 							/>

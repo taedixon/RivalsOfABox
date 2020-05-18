@@ -128,7 +128,6 @@ export default (charData, atkData, windows, hitboxes) => {
 
             // because I made a few silly miscalculations
             if (key === "HG_WINDOW") entry.value ++;
-            else if (key === "HG_WINDOW_CREATION_FRAME") entry.value ++;
 
             out_ATK += setHbValTemplate
                 .replace("__ATKNAME__", ATK_NAME)
