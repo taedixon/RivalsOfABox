@@ -735,7 +735,6 @@
 						border-right: 2px solid black;
 						display: inline-block;
 					"
-					on:click={() => {windows[anim.windowIndex].data.AG_WINDOW_ANIM_FRAME_START.value = i}}
 				></div>
 			{/each}
 		</div>
