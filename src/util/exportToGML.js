@@ -128,12 +128,18 @@ export default (charData, atkData, windows, hitboxes) => {
 
             // because I made a few silly miscalculations
             if (key === "HG_WINDOW") entry.value ++;
-
+            const val = entry.value;
+            if (key === "HG_HIT_SFX") {
+                val = `asset_get("${entry.value}")`;
+            }
+            if (key === "HG_PROJECTILE_SPRITE" || key === "HG_PROJECTILE_MASK") {
+                val = `sprite_get("${entry.value}")`;
+            }
             out_ATK += setHbValTemplate
                 .replace("__ATKNAME__", ATK_NAME)
                 .replace("__HITBOXNUM__", i + 1)
                 .replace("__HGINDEX__", key)
-                .replace("__VALUE__", (key === 'HG_HIT_SFX') ? `asset_get("${entry.value}")` : entry.value)
+                .replace("__VALUE__", val)
                 + '\n'
         }
         out_ATK += '\n';

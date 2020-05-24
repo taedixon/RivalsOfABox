@@ -965,7 +965,7 @@
 					width="{calc.frameWidth}"
 					height="{spritesheetSrc.dimensions.height}"
 					stroke="black"
-					stroke-width="2"
+					stroke-width="0.5"
 					fill="none"
 				/>
 				{#if char.position_locked.value || tools.selected !== "pan"}
