@@ -133,7 +133,9 @@ export default (charData, atkData, windows, hitboxes) => {
                 val = `asset_get("${entry.value}")`;
             }
             if (key === "HG_PROJECTILE_SPRITE" || key === "HG_PROJECTILE_MASK") {
-                val = `sprite_get("${entry.value}")`;
+                if (val != -1) {
+                    val = `sprite_get("${entry.value}")`;
+                }
             }
             out_ATK += setHbValTemplate
                 .replace("__ATKNAME__", ATK_NAME)
