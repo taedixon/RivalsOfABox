@@ -128,7 +128,7 @@ export default (charData, atkData, windows, hitboxes) => {
 
             // because I made a few silly miscalculations
             if (key === "HG_WINDOW") entry.value ++;
-            const val = entry.value;
+            let val = entry.value;
             if (key === "HG_HIT_SFX") {
                 val = `asset_get("${entry.value}")`;
             }
