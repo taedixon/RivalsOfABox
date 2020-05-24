@@ -50,6 +50,9 @@ export default (charData, atkData, windows, hitboxes) => {
     let out_LOAD = "";
     let out_ATK = "";
 
+    const atkHitboxes = hitboxes.filter(hb => hb.data.meta_INCLUDE_IN_ATTACK.value == true);
+    const extraHitboxes = hitboxes.filter(hb => hb.data.meta_INCLUDE_IN_ATTACK.value == false);
+
     let ATK_NAME;
     if (Object.keys(ATK_INDEXES).includes(atkData.ATK_INDEX.value.toString())) ATK_NAME = ATK_INDEXES[parseInt(atkData.ATK_INDEX.value.toString())];
     else ATK_NAME = atkData.ATK_INDEX.value;
@@ -111,20 +114,22 @@ export default (charData, atkData, windows, hitboxes) => {
     out_ATK += '\n' +
         setHbNumTempalte
         .replace("__ATKNAME__", ATK_NAME)
-        .replace("__VALUE__", hitboxes.length)
+        .replace("__VALUE__", atkHitboxes.length)
         + '\n';
 
-
-    const hbs = hitboxes.sort((a, b) => {
+    const hitboxSortMethod = (a, b) => {
         if (a.data.HG_WINDOW.value < b.data.HG_WINDOW.value) return -1;
         if (a.data.HG_WINDOW.value > b.data.HG_WINDOW.value) return 1;
         if (a.data.HG_WINDOW_CREATION_FRAME.value < b.data.HG_WINDOW_CREATION_FRAME.value) return -1;
         if (a.data.HG_WINDOW_CREATION_FRAME.value > b.data.HG_WINDOW_CREATION_FRAME.value) return 1;
         return 0;
-    })
+    };
+
+    const hbs = [...atkHitboxes.sort(hitboxSortMethod), ...extraHitboxes.sort(hitboxSortMethod)];
     for (const [i, hb] of hbs.entries()) {
         for (const [key, entry] of Object.entries(hb.data)) {
             if ([null, undefined, '...', 0].includes(entry.value) && !["HG_WINDOW_CREATION_FRAME", "HG_WINDOW"].includes(key)) continue;
+            if (key.startsWith("meta")) continue;
 
             // because I made a few silly miscalculations
             if (key === "HG_WINDOW") entry.value ++;

@@ -19,34 +19,34 @@ export const strip = (toStrip, clone = true) => {
 }
 
 export const populate = (stripped, fields, clone = true) => {
-    const populated = (clone) ? JSON.parse(JSON.stringify(stripped)) : stripped;
 
+    const set_thing = (target) => {
+        for (const [key, val] of Object.entries(target)) {
+            if (!Object.keys(fields).includes(key)) {
+                delete target[key];
+                continue;
+            }
+            target[key] = {
+                ...fields[key],
+                value: val
+            }
+        }
+        for (const key of Object.keys(fields)) {
+            if (target[key] == undefined) {
+                target[key] = Object.assign({}, fields[key]);
+            }
+        }
+    }
+    
+    const populated = (clone) ? JSON.parse(JSON.stringify(stripped)) : stripped;
     if (Array.isArray(populated)) {
         for (const entry of populated) {
             populate(entry, fields, false);
         }
     } else if (populated.data) {
-        for (const [key, val] of Object.entries(populated.data)) {
-            if (!Object.keys(fields).includes(key)) {
-                delete populated.data[key];
-                continue;
-            }
-            populated.data[key] = {
-                ...fields[key],
-                value: val
-            }
-        }
+        set_thing(populated.data);
     } else {
-        for (const [key, val] of Object.entries(populated)) {
-            if (!Object.keys(fields).includes(key)) {
-                delete populated[key];
-                continue;
-            }
-            populated[key] = {
-                ...fields[key],
-                value: val
-            }
-        }
+        set_thing(populated);
     }
     return populated;
 }

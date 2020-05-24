@@ -2,6 +2,12 @@ import { stripIndent } from 'common-tags';
 import sfx from './sfxNames.js';
 
 export default {
+    meta_INCLUDE_IN_ATTACK: {
+        value: true,
+        description: stripIndent`
+        If false, will not count towards attack's NUM_HITBOX`,
+        type: [true, false]
+    },
     HG_PARENT_HITBOX: {
         value: 0,
         description: stripIndent`
